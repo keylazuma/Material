@@ -1,0 +1,234 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+#36
+```{r}
+#a)
+
+#b)
+
+#c)
+presion=c(1.1,1.3,1.1,1.3,1.2,1.2,1.2,1.2,1.3)
+pureza=c(83,85.7,84,86,84,83.5,83,84,86.3)
+var1= lm(pureza~presion)
+summary(var1)
+
+```
+
+
+
+#38
+```{r}
+#datos
+humedad= c(95,90,85,80,75,70,65,60,55,50,45,40,35,30,25)
+vida=c(8,7,7,8,9,10,14,12,12,13,14,14,11,16,16)
+vida.util=lm(vida~humedad)
+summary(vida.util)
+
+qqPlot(vida.util$residuals)
+shapiro.test(vida.util$residuals)
+```
+#39
+```{r}
+#a)
+setwd("C:/Users/User/Downloads")
+load(file="electricidad.Rdata")
+attach(electricidad)
+names(electricidad)
+
+par(mfrow=c(1,3))
+plot(gastokw~alquilado)
+plot(gastokw~as.factor(alquilado))# para hacer un grafico de cajas porque son dos variables
+plot(gastokw~miembroshogar)
+plot(gastokw~metroscuad)
+
+#b)
+mod.39 <-  lm(gastokw~alquilado+miembroshogar+metroscuad)
+summary(mod.39)
+
+#c)
+
+#d)
+
+#e)
+
+#f)
+
+#g)
+par(mfrow=c(1,2))
+plot(mod.39$fitted.values,mod.39$residuals)
+plot(mod.39$residuals~mod.39$fitted.values)
+#si se podria suponer homocedasticidad porque la nube de puntos
+#forma un rectangulo horizontal a pesar de que tengo dos valores
+#extremos
+
+#h)
+shapiro.test(mod.39$residuals)
+#no hay suficiente evidencia estadistica pra rechazar de de que los 
+#la hn de que los errores se dsitribuyen normalente
+
+library(car)
+qqPlot(mod.39$residuals)
+
+```
+#40
+```{r}
+aditivo=c(rep(1,4),rep(2,4),rep(3,4),rep(4,4),rep(5,4))
+rendimiento=c(17,14,13,12,14,14,13,10,12,13,12,9,13,11,11,12,11,12,10,8)
+tapply(rendimiento,aditivo,mean)
+mean(rendimiento)
+sd(rendimiento)
+#a)
+
+#b)
+anova1=lm(rendimiento~aditivo)
+qqPlot(anova1$residuals)
+shapiro.test(anova1$residuals)
+
+#c)
+plot(anova1$fitted.values,anova1$residuals)
+leveneTest(rendimiento~as.factor(aditivo))# al parecer si hay homogeneidad
+```
+#41
+```{r}
+#a)
+library(car)
+produccion=c(10,12,15,18,9,17,15,12,18,15,17,18,12,13,11,12,11,12,12,17,15,15,18,12,13,14,14)
+lugar=as.factor(c(rep(1,9),rep(2, 9), rep(3,9)))
+length(produccion)
+length(lugar)
+repi=aov(produccion~lugar)
+anova(repi)
+TukeyHSD(repi)
+
+#b)
+xd=lm(produccion~lugar)
+shapiro.test(xd$residuals)
+qqPlot(xd$residuals)
+
+#c)
+plot(xd$fitted.values, xd$residuals)
+```
+
+
+
+
+#42
+```{r}
+library(car)
+sexo = c(rep(1,12), rep(0,12))
+felicidad = c(9,4.5,6.3,5.8,8.3,3.1,2.5,9.1,7.4,3.3,4.1,2.1,6.6,2.7,5.2,8,3.6,5.9,2.4,6,2,3.6,3,5.2)
+
+# modelo de regresion
+mod.42 = lm(felicidad~ sexo)
+summary(mod.42)
+
+#evaluar el supuesto de homocedasticidad
+par(mfrow=c(1,2))
+plot(mod.42$residuals~mod.42$fitted.values)
+boxplot(felicidad~as.factor(sexo), names=c("mujer", "hombre"))
+
+leveneTest(felicidad~as.factor(sexo))
+
+# normalidad condicional
+par(mfrow=c(1,1))
+qqPlot(mod.42$residuals)
+shapiro.test(mod.42$residuals)
+```
+#43
+
+```{r}
+#a)
+
+
+#b)
+maq=c(1,1,1,1,1,0,0,0,0,0,0)
+rend=c(8.26, 8.13, 8.385, 8.07, 8.34, 7.95, 7.89, 7.9, 8.14, 7.92, 7.84)
+mod.43 <-  lm(rend~maq)
+summary(mod.43)
+
+
+#c)
+qqPlot(mod.43$residuals)
+
+#D)
+shapiro.test(mod.43$residuals)
+
+#e)
+plot(mod.43$fitted.values,mod.43$residuals)
+leveneTest(rend~as.factor(maq))
+```
+#44
+```{r}
+papel = c(19,14,1,0)
+papel
+
+marca_papel = matrix(papel, nrow = 2, ncol = 2, byrow = T)
+marca_papel
+
+chisq_papel = prop.test(marca_papel) #prueba z
+chisq_papel
+
+fisher_papel = fisher.test(marca_papel)
+fisher_papel
+```
+#45
+
+```{r}
+
+grupo = as.factor(c(rep(1,16), rep(0,16)))
+
+niveles_h = c(3,3.5,3,3.5,4.5,5.5,2,4.5,5.5,6.5,3.5,4,4,3,2.5,6,8,4,5,6.5,3.5,7,5,7.5,5,6,6.5,3.5,4.5,4,7,5.5)
+length(niveles_h)
+
+shapiro.test(niveles_h)
+
+
+pruebaf = leveneTest(niveles_h,grupo)
+pruebaf
+
+?leveneTest
+
+hetero = t.test(niveles_h[grupo == 0], niveles_h[grupo == 1], alternative = "g", mu = 0, var.equal = T)
+hetero
+
+wilco_umann = wilcox.test(niveles_h[grupo == 0],niveles_h[grupo == 1], alternative = "g", mu = 0, paired = F)
+wilco_umann
+
+```
+
+#46
+```{r}
+maq1=c(8.26,8.13,8.385,8.07,8.34)
+maq2=c(7.95,7.89,7.9,8.14,7.92,7.84)
+
+maq.total=c(maq1,maq2)
+tipo=as.factor(c(rep(1,5),rep(2,6)))
+
+par(mfrow=c(1,2))
+qqPlot(maq1)
+qqPlot(maq2)
+
+shapiro.test(maq1)
+shapiro.test(maq2)
+
+##H0: Mu1=Mu2
+##H1: Mu1<>Mu2
+
+###a)
+wilcox.test(maq1,maq2,paired=F)
+
+##b)
+##H0: Var1=Var2
+##H1: Var1<> Var2
+
+leveneTest(maq.total,tipo)
+
+
+##c)
+t.test(maq1,maq2,paired=F,var.equal=T)
+```
+

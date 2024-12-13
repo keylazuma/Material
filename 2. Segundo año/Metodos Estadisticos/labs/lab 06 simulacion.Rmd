@@ -1,0 +1,198 @@
+---
+title: "Lab6_2022_Simulacion"
+author: "Gilbert Brenes Camacho"
+date: "3/15/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+XS-2110 Métodos Estadísticos
+
+Laboratorio de simulación de potencia y significancia. 
+Recuérdese este ejemplo.
+1.	En una población específica de hombres, se ha determinado que el peso promedio 
+del adulto de 18 años o más ha sido históricamente de 60 kilogramos, con una desviación estándar 
+de 20 kilogramos.  Sin embargo, un cambio en la dieta en la que los chicharrones de cerdo 
+han sustituido a los picadillos de vegetales, hace pensar que el peso promedio se ha incrementado.
+Se desea probar que el peso promedio aumentó, con un nivel de significancia alfa=0.05.  
+Se toma una muestra de 2000 personas y se les pesa con una báscula estandarizada.  
+En esta muestra se obtuvo que el peso promedio de los hombres es de 63 kilogramos.  
+Prueba la hipótesis de que el peso promedio de los hombres ha aumentado, con un alfa=0.05.
+
+
+
+Sabemos que la hipótesis nula y alternativa serían:
+
+H0: Mu=60
+H1: Mu>60
+
+Sabemos que la significancia se puede definir como:
+  alfa=P(Rechazar H0 | H0 cierta) = P(Ybarra > ybarra_tabular | H0: Mu=60)
+  El valor de ybarra_tabular es el que hace que dicha probabilidad sea igual a 0.05
+ En el ejemplo manual habíamos encontrado que ybarra_tabular=60.73
+
+Recuérdese que para una simulación siempre es bueno tener vectores de almacenamiento.
+Mi objetivo ahora es simular la distribución muestral de ybarra y encontrar el valor
+de ybarra_tabuar tal que alfa=0.05
+
+Sabemos además que el ybarra_tabular según el método de las unidades de medición es 60.735
+Y, con el métodos de los cuantilos, el z_tabular es 1.645
+En otras palabras, por cálculos manuales, sabemos a partir de qué valor se define
+una significancia del 5% 
+
+Programaríamos manual la prueba z.  Sabemos entonces que se rechaza la prueba 
+si ybarra>ybarra_tabular
+
+
+Se va a generar la distribución muestral de ybarra a partir de 10000 muestras 
+de tamaño 2000.
+
+```{r}
+almacen.ybarra=rep(NA,10000)
+almacen.rechazo=rep(NA,10000)
+
+for (i in 1:10000) {
+    
+    y=rnorm(2000,mean=60, sd=20)  ##Se genera la muestra
+    
+    almacen.ybarra[i]=mean(y)            ##Se almacena la media
+    almacen.rechazo[i]=1*(almacen.ybarra[i]>=60.73)  ###Es el x.barra.tab con unidades de medicion
+  
+}
+
+
+###El histograma de almace.ybarra refleja la distribución muestral de las medias.
+
+hist(almacen.ybarra)
+
+###El percentil 95 es el valor que delimita las zonas de rechazo y de no rechazo.
+###Noten el valor tan cercano al ybarra_tabular calculado a mano.
+
+quantile(almacen.ybarra,0.95)
+
+
+
+###La significancia sería la proporción de veces en que ybarra fue mayor al ybarra_tabular.
+
+mean(almacen.rechazo)
+
+###Noten que el valor anterior es aproximadanente igual a la significancia.
+
+###El p-value o probabilidad asociada a la prueba se puede calcular con esta distribución muestral.
+##Por cálculos manulaes, sabíamos que el p-value era: 0.0000000000097
+##Como apenas estamos simulando 10000 repeticiones, la aproximación va a ser baja.
+
+###Veáse que en la muestra se obtuvo un ybarra=63
+###Y se sabe que el p-value es la probabilidad de observar el valor de la muestra 
+###o uno más extremo condicional a la hipotesis nula.
+
+
+almacen.p.value=1*(almacen.ybarra>=63)
+
+mean(almacen.p.value)   ### La media de esta variable binaria será aproximadamente igual al p-value.
+
+```
+
+
+Con las simulaciones también se puede calcular la potencia.  Recuérdese el ejemplo visto en clase:
+
+En una población específica de hombres, se ha determinado que el peso promedio del adulto de 18
+años o más ha sido históricamente de 60 kilogramos, con una desviación estándar de 20 kilogramos.  
+Sin embargo, un cambio en la dieta en la que los chicharrones de cerdo han sustituido 
+a los picadillos de vegetales, hace pensar que el peso promedio se ha incrementado.  
+Se desea probar que el peso promedio aumentó, con un nivel de significancia alfa=0.05.  
+Se toma una muestra de 1000 personas y se les pesa con una báscula estandarizada.
+
+Se quiere saber cuál es la potencia que tendría esta prueba con la muestra de 1000 personas 
+para detectar un peso de 61.5 kilogramos.
+
+H0: Mu=60
+H1: Mu>60
+
+H1*: Mu=61.5
+
+Recuérdese que la definición de potencia sería:
+
+P(Rechazar H0 | H0 falsa) = P(Rechazar H0 | Mu=61.5 )
+
+
+```{r}
+almacen.ybarra2=rep(NA,10000)
+almacen.rechazo2=rep(NA,10000)   ###El mas importante para calcular potencia
+
+for (i in 1:10000) {
+  
+  y=rnorm(1000,mean=61.5, sd=20)  ##Se genera la muestra ahora con una media de 61.5
+                                  ##Porque la probabilidad es condicional a H1*
+                                  ##Adem??s el tamaño de muestra es 1000
+  
+  almacen.ybarra2[i]=mean(y)            ##Se almacena la media
+  almacen.rechazo2[i]=1*(almacen.ybarra2[i]>=61.04)
+  
+}
+
+
+###La potencia sería la proporción de veces en que se rechazó H0.
+mean(almacen.rechazo2)
+```
+
+En nuestros cálculos manuales, la potencia era igual a 0.7673.  
+Noten la similitud.
+
+
+
+Ahora bien, esta es una ilustración del caso en el que se programó muy 
+rudimentariamente la prueba z.  Cuánto sería la potencia si volviéramos a hacer 
+el contraste con la prueba t.
+
+LA QUE SIGUE SERíA LA MANERA CORRECTA EN LA QUE ESPERO QUE RESUELVAN PROBLEMAS DE POTENCIA
+USANDO SIMULACIONES
+
+Para ello, aun así, tenemos que seguir suponiendo el valor de la desviación estándar 
+poblacional, que planteamos en 20
+
+```{r}
+almacen.ybarra3=rep(NA,10000)
+almacen.rechazo3=rep(NA,10000)
+
+for (i in 1:10000) {
+  
+  y=rnorm(1000,mean=61.5, sd=20)  ##Se genera la muestra ahora con una media de 61.5
+  ##Porque la probabilidad es condicional a H1*
+  ##Además el tamaño de muestra es 1000
+  
+  almacen.ybarra3[i]=mean(y) ###Se almacena la media
+  
+  prueba.t=t.test(y, mu=60)   ##Se realiza la prueba con la función ya programada.
+  almacen.rechazo3[i]=1*(prueba.t$p.value<0.05)    ##En el subobjeto "p.value", R guarda el pvalue.
+  
+}
+
+mean(almacen.rechazo3)
+````
+
+
+Noten cómo decreció ligeramente la potencia con respecto de la prueba anterior.
+Porque la prueba t es menos potente que la prueba z cuando se conoce la variancia poblacional
+
+
+
+Con la última forma de programación, traten de calcular la potencia de la prueba
+para una prueba binomial exacta del manual de práctica.
+
+
+8.	La gerente de un supermercado tradicionalmente sabe que el 20% de sus clientes 
+compra al menos un producto de los anaqueles (o góndolas) que están justo a la par 
+de las cajas registradoras, y se preocupa cuando algún subgrupo de clientes tiene menor 
+probabilidad de comprar en estas g??ndolas.  La cadena de supermercados está desarrollando 
+una campaña de mercadeo para atraer a profesionales solteros menores de 30 años.  
+sin embargo, la gerente nota que muy pocos de estos profesionales solteros compran 
+en los anaqueles a la par de las cajas. Si solo 10% de estos profesionales compran 
+en estos anaqueles, entonces quiere cambiar el "merchandising" (estrategia de apariencia)
+de los mismos para incentivar la compra.
+
+Si planea tomar una muestra de 30 clientes profesionales solteros y analizarlos 
+con una significancia del 5%, ¿cuál es el tamaño de la potencia de la prueba 
+para detectar que 10% de estos clientes compran productos en los anaqueles? 
+  

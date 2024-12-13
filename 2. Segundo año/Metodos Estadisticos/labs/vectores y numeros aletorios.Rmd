@@ -1,0 +1,170 @@
+---
+title: "Lab6_2022"
+author: "Gilbert Brenes Camacho"
+date: "3/15/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+XS-2110 Métodos Estadísticos
+
+Laboratorio de vectores y generación de números aleatorios. 
+
+Objetivo: Generar números aleatorios en R.
+
+Generemos números aleatorios
+
+R tiene funciones ya establecidas para generar números aleatorios:
+  
+_rnorm(# de obs, mean=, sd=): 	# números aleatorios de una distribución normal con media mean y desviación estándar sd
+_rnorm(#) 	# números aleatorios de una dist normal estándar
+_runif(# de obs, min=, max=)	# números aleatorios de una dist uniforme con mínimo y máximo
+_rexp(#, rate=)	# números aleatorios de una dist exponencial con parámetro=1/lambda
+_rpois(#, lambda=)	# números aleatorios de una dist Poisson con parámetro=lambda
+_rbinom(#,size=, prob=)	# números aleatorios de una dist binomial con n=size y p=prob
+_rnbinom(#, size, prob, mu)	# números aleatorios de una dist binomial negativa con n=size y p=prob, o mu=media
+_rgeom(#, prob)	# números aleatorios de una dist geométrica con p=prob
+                  
+
+Por ejemplo:
+                    
+Generemos 100 columnas de 10 números aleatorios cada una con una distribución normal
+estándar.
+                    
+              
+Esta es la creación de una matriz con 100 columnas y 10 filas con números aleatorios
+de una distribución normal estándar
+   
+   
+```{r}
+matriznorm=matrix(rnorm(1000),nrow=10, byrow=T)
+
+matriznorm[1:10,1:10]
+```                  
+                  
+Con este comando lo pasamos a tipo dataframe
+```{r}
+norm=data.frame(matriznorm)
+names(norm)
+```                  
+                  
+Ahora generemos 1000 columnas con 10 números aleatorios cada una con una distribución normal.  
+Las primeras 10 filas son de una distribución normal con media=10 y desviación estándar=10. 
+                  
+Cómo lo harían?
+
+
+
+                  
+Ahora generemos 10000 columnas con 12 números aleatorios cada una 
+con una distribución Bernoulli con probabilidad p=0.5.  
+
+
+```{r}                  
+bernoulli=matrix(rbinom(120000, size=1, prob=0.5), nrow=12, byrow=T)
+b=data.frame(bernoulli)
+
+b$X1
+```                  
+                  
+Cómo generarían 200 columnas de 50 renglones cada una, 
+con números al azar de una distribución exponencial con parámetro rate=0.1
+
+
+
+
+SIMULACION DE POR QUE NO SE PUEDE USAR LA PRUEBA t CON VARIABLES BINARIAS
+                  
+NOTAR CÓMO SE MUESTRA QUE SI NO SE SUPONE NORMALIDAD, 
+EL ESTADíSTICO TE NO SE DISTRIBUYE COMO UNA T DE STUDENT.
+                  
+Ciclos para probar algo varias veces
+Supongan que queremos probar si la distribución muestral de la media aritmética 
+de una variable Bernoulli se distribuye normalmente con una muestra de tamaño 12.
+
+Con esto estamos evaluando el teorema del l??mite central con muestras de tamaño 12.
+                  
+Tomaremos el archivo anterior que generamos con variables aleatorias Bernoulli
+Usaremos el comando ttest para generar las estimaciones de la variable estandarizada
+
+```{r}                  
+attach(b)
+```                 
+
+
+```{r}                  
+media=rep(NA,10000)   ###Almacenar las 10mil medias
+te=rep(NA,10000)   ###Almacenar los 10mil t_calculados
+```
+
+H0: Mu=0.5
+H1: Mu<>0.5
+
+```{r}
+for (i in 1:10000) {
+      if(sd(b[1:12,i])==0) result=NA else result=t.test(b[1:12,i], mu=0.5)
+      if(sd(b[1:12,i])==0) media[i]=NA else media[i]=mean(b[1:12,i])
+      if(sd(b[1:12,i])==0) {
+        te[i]=NA
+      } else {
+          te[i]=result$statistic
+          }
+}
+
+###result$statistic es el tcalculado                  
+par(mfrow=c(1,2))
+hist(media, col="pink")
+
+hist(te, freq=F, col="pink")
+```
+
+
+Superponemos un gráfico de densidad de una t con 11 grados de libertad
+
+Para ello creamos los pares ordenados
+
+
+```{r}
+t <- seq(-4, 4, length=100)
+ht <- dt(t,11)
+hist(te, freq=F, col="pink")
+lines(t, ht, col="red")
+```
+
+Una nueva simulacion
+
+```{r}
+bernoulli2=matrix(rbinom(600000, size=1, prob=0.5), nrow=60, byrow=T)
+b2=data.frame(bernoulli2)
+
+
+
+media2=rep(NA,10000)   ###Almacenar las 10mil medias
+te2=rep(NA,10000)   ###Almacenar los 10mil t_calculados
+
+##H0: Mu=0.5
+##H1: Mu<>0.5
+
+for (i in 1:10000) {
+  if(sd(b2[1:60,i])==0) result=NA else result=t.test(b2[1:60,i], mu=0.5)
+  if(sd(b2[1:60,i])==0) media2[i]=NA else media2[i]=mean(b2[1:60,i])
+  if(sd(b2[1:60,i])==0) {
+    te2[i]=NA
+  } else {
+    te2[i]=result$statistic
+  }
+}
+
+hist(media2, col="pink")
+```
+
+
+```{r}
+hist(te2, freq=F, col="pink")
+
+t <- seq(-4, 4, length=100)
+ht <- dt(t,59)
+
+lines(t, ht, col="red")
+```

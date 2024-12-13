@@ -1,0 +1,45 @@
+---
+title: "examen"
+author: "a"
+date: '2022-07-18'
+output: html_document
+---
+
+```{r}
+library(car)
+library(boot)
+library(dunn.test)
+```
+
+
+```{r}
+attach(rios)
+rios
+regre=lm(ph~alcalinidad+caudal+rioarriba)
+summary(regre)
+```
+
+
+```{r}
+qqPlot(regre$residuals)
+```
+
+
+```{r}
+leveneTest(ph~as.factor(rioarriba))
+shapiro.test(ph[rioarriba==0])
+shapiro.test(ph[rioarriba==0])
+t.test(ph[rioarriba==0],ph[rioarriba==1], alternative = "two.sided", mu=0,var.equal = T)
+```
+
+
+```{r}
+wilcox.test(ph[rioarriba==0], ph[rioarriba==1], alternative = "two.sided", mu=0, paired= F)
+```
+
+```{r}
+tipo.lecciones = c(250, 250, 350, 150)
+matriz = matrix(tipo.lecciones, nrow = 2, ncol = 2, byrow = T)
+ fisher.test(matriz)
+
+```
