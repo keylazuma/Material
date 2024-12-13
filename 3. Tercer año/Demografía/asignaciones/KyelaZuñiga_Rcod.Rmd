@@ -1,0 +1,101 @@
+---
+title: "Asignacion 1"
+output: html_document
+date: "2023-05-03"
+---
+
+.
+```{r}
+library(readxl)
+golfito2011 <- read_excel("C:/Users/User/Downloads/golfito2011.xlsx")
+attach(golfito2011)
+
+library(ggplot2)
+ggplot(golfito2011, aes(edad,Total))+
+  geom_line()+ ggtitle("Poblacion por edades simples Costa Rica, Censo 2011")
+
+ggplot(golfito2011, aes(edad, Total)) + geom_point()+
+  geom_smooth(span=0.25, se= FALSE) + ggtitle("ajuste lowest")
+
+estimacion= loess(Total~edad, data=golfito2011, span=0.25)
+datos=ceiling(predict(estimacion))
+datos.p= ifelse(datos<0,0,datos)
+datos1= data.frame(edad, datos.p)
+
+ggplot(golfito2011, aes(edad, datos))+geom_line()+ ggtitle("Estimaciones Costa Rica, censo 2011")
+
+```
+
+
+```{r}
+install.packages("openxlsx")
+library(openxlsx)
+write.xlsx(datos1, "golfito.xlsx")
+
+getwd()
+```
+
+```{r}
+library(readxl)
+demo <- read_excel("C:/Users/User/Desktop/demo.xlsx")
+
+demo$log_hombresCR <- log(demo$HombreCR)
+demo$log_mujeresCR <- log(demo$MujerCR)
+demo$log_totalCR <- log(demo$TotalCR)
+
+demo$log_hombresG <- log(demo$HombreG)
+demo$log_mujeresG <- log(demo$MujerG)
+demo$log_totalG <- log(demo$TotalG)
+
+attach(demo)
+names(demo)
+
+```
+
+
+```{r}
+library(ggplot2)
+
+
+ggplot(demo, aes(x = Edad)) +
+  geom_line(aes(y = log_hombresG, color = "Hombres G"), size=1) +
+  geom_line(aes(y = log_mujeresG, color = "Mujeres G"), size=1) +
+  geom_line(aes(y = log_hombresCR, color = "Hombres CR"), size=1) +
+  geom_line(aes(y = log_mujeresCR, color = "Mujeres CR"), size=1) +
+  labs(x = "Edad", y = "Log de personas", color = "Grupo", title= " Comparación de poblaciones Costa Rica y Golfito 2011")
+
+ggplot(demo, aes(x = Edad)) +
+  geom_line(aes(y = log_hombresG, color = "Hombres G"), size=1) +
+  geom_line(aes(y = log_mujeresG, color = "Mujeres G"), size=1) +
+  geom_line(aes(y = log_totalG, color = "total G"), size=1) +
+  geom_line(aes(y = log_hombresCR, color = "Hombres CR"), size=1) +
+  geom_line(aes(y = log_mujeresCR, color = "Mujeres CR"), size=1) +
+  geom_line(aes(y = log_totalCR, color = "total CR"), size=1) +
+  labs(x = "Edad", y = "Log de personas", color = "Grupo")
+
+ggplot(demo, aes(x = Edad)) +
+  geom_line(aes(y = HombreCR, color = "Hombres CR"), size=1) +
+  geom_line(aes(y = MujerCR, color = "Mujeres CR"), size=1) +
+  labs(x = "Edad", y = "Cantidad de personas", color = "Grupo", title = "Poblacion total Costa Rica 2011")
+
+ggplot(demo, aes(x = Edad)) +
+  geom_line(aes(y = HombreG, color = "Hombres G"), size=1) +
+  geom_line(aes(y = MujerG, color = "Mujeres G"), size=1) +
+  labs(x = "Edad", y = "Cantidas de personas", color = "Grupo", title = "Poblacion Golfito 2011")
+
+```
+
+
+
+```{r}
+attach(demo)
+ggplot(demo, aes(x = Edad)) +
+  geom_line(aes(y = HombreG, color = "Hombres")) +
+  geom_line(aes(y = MujerG, color = "Mujeres")) + 
+  geom_line(aes(y = TotalG, color = "Total")) +
+  scale_color_manual(values = c("blue", "deeppink", "black")) +
+  labs(x = "Edad", y = "Población", title = "Población Total por edad y género",
+       color ="grupo")
+```
+
+

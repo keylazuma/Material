@@ -1,0 +1,89 @@
+---
+title: "Asignacion 2 Demografia"
+author: "Keyla Zúñiga Martínez"
+output:
+  word_document: default
+  html_document: default
+date: "2023-06-19"
+---
+
+```{r}
+library(readxl)
+library(ggplot2)
+demo2 <- read_excel("C:/Users/User/Desktop/demo/demo2.xlsx", 
+    sheet = "Hoja2")
+```
+
+# Pregunta 2
+```{r}
+demo2$edad = as.character(demo2$edad)
+demo2$edad = factor(demo2$edad, levels = unique(demo2$edad))
+
+ggplot(demo2, aes(x= edad, y= prob, group= grupo, colour=grupo))+ 
+  geom_line()+
+  xlab("grupo edad")+ ylab("probabilidad de muerte")+
+  labs(title = "Probabilidad de muerte según género por grupo de edad", caption = "Fuente: Instituto Nacional de Estadisticas y Censos (INEC) y Centro Centroamericano de Poblacion (CCP)") +
+  scale_color_manual(values = c("femenino" = "#9932CC", "masculino" = "#2E8B57")) +
+  theme_get()
+```
+La probabilidad de muerte de los hombres empieza a cambiar en las edades a partir de los 45 en adelante, esta tiende a ser mayor, una de las razones es porque la tasa de mortalidad masculina es más alta a comparacion de las mujeres, por ende las probabilidades de morir tambien tienden a ser más altas.
+
+
+```{r}
+load("C:/Users/User/Downloads/reincidencia.Rdata")
+
+library(survival)
+library(ggfortify)
+
+educa <- ifelse(reincidencia$educ %in% c(2, 3), 1, 2)
+
+km = survfit(Surv(week, arrest)~educa, stype = 1, data = reincidencia)
+summary(km)
+
+autoplot(km)
+
+survdiff(Surv(week, arrest)~educ, data = reincidencia)
+
+quantile(km, quantiles= c(0.25, 0.5, 0.75))
+
+
+
+```
+Una de las razones por la que el calculo de la mediana de "NA" es que mas de la mitad de la muestra no pasaron por el evento en el tiempo de interes, entoces, no se puede calcular un punto medio de sobrevivencia de las observaciones
+
+Con respecto a las curvas, en las edades menores a 35 años no se logra ver una diferencia de la sobrevivencia de acuerdo a la educacion, sin embargo, se observa que entre más avance la edad de la poblacion las diferencias en la supervivencia por educacion tienden a ser mas visibles, es decir, la educacion 4,5 y 6 tienen a sobrevivir más.
+
+
+
+# pregunta 4
+```{r}
+library(readxl)
+base <- read_excel("C:/Users/User/Downloads/asignacion2 (1).xlsx")
+
+```
+
+
+
+```{r}
+base$evento = base$terminoobs
+base$evento = as.numeric(base$evento)
+
+base$evento[is.na(base$evento)] = 0
+base$evento = ifelse(base$evento == 0,  0, 1)
+
+base$fecha = base$terminoobs
+
+diferencia1 = base$terminoobs - base$entradaobs
+diferencia = base$entrevista-base$entradaobs
+
+base$fecha = ifelse(base$evento == 0, diferencia, diferencia1)
+
+observacion.km = survfit(Surv(fecha,evento)~1, stype = 1, data = base)
+summary(observacion.km)
+autoplot(observacion.km)
+
+```
+
+
+
+
