@@ -1,0 +1,409 @@
+---
+title: "INTRODUCCION AL ANALISIS MULTIVARIADO"
+subtitle: "Lab. No.5 - INDICADORES DE DESEMPEÑO"
+output:
+  html_document: 
+    highlight: tango
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+1. Cargue los paquetes  `caret`, `rpart`, `rattle`, `DT`,  `ROCR` y  `plotly`.
+```{r}
+library(caret)
+library(rpart)
+library(rattle)
+library(DT)
+library(ROCR)
+library(plotly)
+```
+
+
+2.  Cargue la base de Credit.  Declare la variable sobreendeudado como factor. Divida el archivo de datos de base2: uno para entrenar llamado `train` (80%) y el otro para predecir llamado `test` (20%).  Use la instrucción `RNGkind(sample.kind = "Rounding")` y semilla igual a 10.
+
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.7 - INDICADORES DE DESEMPEÑO/Credit.Rdata")
+base2$sobreendeudado = factor(base2$sobreendeudado)
+RNGkind(sample.kind = "Rounding")
+```
+
+```{r}
+set.seed(10)
+n= nrow(base2)
+s= sample(1:n, round(0.8*n))
+train= base2[s,]
+test= base2[-s,]
+```
+
+
++ Haga un árbol de decisión con la base de entrenamiento (`mod1`).  Obtenga la clasificación de la base de validación y llámele `pred1`. Recuerde que en el predict debe usar `type="class"`.
+```{r}
+mod1= rpart(cliente~., method = "class", data= train)
+pred1= predict(mod1, newdata= test, type= "class")
+```
+
++ Haga un modelo de regresión logística con la base de entrenamiento y todas las variables (`mod2`).  Obtenga la clasificación de la base de validación (recuerde que en el predict debe usar `type="response"` para obtener la probabilidad de éxito y luego asignar aquellos que tienen una probabilidad mayor a 0.5 al grupo 1), llámele `pred2`.
+
+```{r}
+mod2= glm(cliente~., family = binomial, data= train)
+pred2= predict(mod2, newdata= test, type= "response")>0.5
+```
+
+
++ Compare las dos clasificaciones.
+```{r}
+table(pred1, pred2)
+```
+
+
++ Obtenga la matriz de distancias entre los elementos de la base de entrenamiento y la base de validación. Use la distancia de Gower en la función `daisy` en la librería `cluster`.  Pegue primero las dos bases y obtenga la matriz de distancias de todos contra todos, luego extraiga solo la parte que compara los elementos de entrenamiento contra los de validación.
+```{r}
+library(cluster)
+d= as.matrix(daisy(rbind(train[,-1], test[,-1])))
+d= d[1:nrow(train), (nrow(train)+1): (nrow(train)+nrow(test))]
+dim(d)
+```
+
+
++ Haga la clasificación de la base de validación con k=5 vecinos más cercanos y llámele `pred3`.
+
+```{r}
+library(modeest)
+
+k=5
+pred3= c()
+for(i in 1:nrow(test)){
+  d1= d[,i]
+  o= order(d1)
+  clas= train[o,][1:k,1]
+  pred3[i]= mfv(clas)
+}
+```
+
+
++  Compare esta clasificación con las 2 anteriores.
+```{r}
+table(pred1, pred3)
+```
+
+```{r}
+table(pred2, pred3)
+```
+
+
+3. Desarrolle un función en R llamada `eval`  que le permita calcular los indicadores de desempeño (`e,FP y FNC`) derivados de la matriz de confusión para un modelo de clasificación de dos clases.  La función debe recibir la variable respuesta de la base de validación y la clasificación de esa misma base obtenida con cualquier método.
+
+```{r}
+#intentar hacerla diferente
+
+eval= function (y, pred){
+  confu= table(y, pred)
+  e= 1- sum(diag(confu))/sum(confu)
+  falsos= 1- diag(confu)/ apply(confu, 1, sum)
+  error= c(e, falsos)*100
+  names(error)= c("e", "FP", "FN")
+  return(list(Matriz= confu, Error=  error))
+}
+```
+
+
++ Ejecute la función para el modelo generado con el árbol de decisión y la clasificación de la base de validación (`pred1`).
+```{r}
+(e1= eval(test$cliente, pred1))
+```
+
+
++ Ejecute la función para el modelo generado con la regresión logística y la clasificación de la base de validación (`pred2`).
+```{r}
+(e2= eval(test$cliente, pred2))
+```
+
+
++ Ejecute la función para el modelo generado con 5 vecinos más cercanos y la clasificación de la base de validación (`pred3`).
+```{r}
+(e3= eval(test$cliente, pred3))
+```
+
+
++ Haga una tabla con los resultados de los 3 modelos.
+```{r}
+E= cbind(e1$Error, e2$Error, e3$Error)
+colnames(E) = c("Arbol", "Logistica", "knn")
+round(E,1)
+```
+
+
+6. Use la función `prediction` de la librería `ROCR` para obtener los elementos para hacer la Curva ROC y obtener el AUC. Debe dar dos variables para esta función, primero la predicción en forma numérica y el vector de respuesta:  `prediction(pred,y)`.  Aplique la función con el primer modelo, ponga el resultado en `predict1`.
+```{r}
+predict1= prediction(as.numeric(pred1), test$cliente)
+```
+
++ Extraiga el auc con `attributes(performance(predict1,"auc"))$y.values[[1]]*100`.
+```{r}
+attributes(performance(predict1,"auc"))$y.values[[1]]*100
+```
+
+```{r}
+attributes(performance(predict1,"auc"))
+
+#$y.values[[1]] ES EL AUC
+```
+
+
++ Para extraer los falsos positivos y la precisión positiva haga `performance(predict1,"tpr","fpr")`.  Guarde esto en `des` y luego extraiga los falsos positivos con `attributes(des)$x.values[[1]]*100` y la precisión positiva con `attributes(des)$y.values[[1]]*100`.
+```{r}
+des= performance(predict1, "tpr", "fpr")
+attributes(des)$x.values[[1]]*100
+des #para ver que tiene des
+```
+
+
++ Escriba la función que hace el gráfico de la Curva ROC y calcula el AUC. Use la siguiente función:
+
+```{r}
+curvaROC = function(pred,y, grafico = F) {
+  predict = prediction(pred,y) 
+  auc = attributes(performance(predict,"auc"))$y.values[[1]]*100
+  des = performance(predict,"tpr","fpr")
+  p = NULL
+  if(grafico){
+    FP = attributes(des)$x.values[[1]]*100
+    PP = attributes(des)$y.values[[1]]*100
+    p <- plot_ly(x = FP, y = FP, name = 'Línea No Discrimina', 
+                 type = 'scatter', mode = 'lines',
+                 line = list(color = 'rgba(0, 0, 0, 1)', 
+                             width = 4, dash = 'dot'),
+                 fill = 'tozeroy',  fillcolor = 'rgba(0, 0, 0, 0)') %>% 
+      add_trace(y = PP, name = paste('Curva ROC (AUC = ', round(auc,3),')', sep =""), 
+                line = list(color = 'rgba(0, 0, 255, 1)', width = 4, 
+                dash = 'line'),  fillcolor = 'rgba(0, 0, 255, 0.2)')%>%
+      layout(title = "Curva ROC",
+             xaxis = list(title = "<b>Falsos Positivos (%)<b>"),
+             yaxis = list (title = "<b>Precisión Positiva (%)<b>"))
+  }
+  return(list(auc = auc,grafico = p))
+}
+```
+
+```{r}
+#extraccion de FP y PP
+FP = attributes(des)$x.values[[1]]*100; FP
+PP = attributes(des)$y.values[[1]]*100; PP
+    
+```
+
++ Haga el gráfico de la Curva ROC y calcule el AUC para los 3 modelos generados anteriormente.
+
+```{r}
+ROC1= curvaROC(as.numeric(pred1), test$cliente, grafico = T)
+ROC2= curvaROC(as.numeric(pred2), test$cliente, grafico = T)
+ROC3= curvaROC(pred3, test$cliente, grafico = T)
+
+ROC1$grafico
+```
+
+```{r}
+ROC2$grafico
+```
+
+```{r}
+ROC3$grafico
+```
+
+7. Para calcular el KS del primer modelo obtenga el máximo de las diferencias entre precisión positiva menos los falsos positivos.
+
+```{r}
+max(attributes(des)$y.values[[1]]*100-attributes(des)$x.values[[1]]*100)
+```
+
+
++ Calcule el KS para los modelos generados en los ejercicios anteriores.  Use la siguiente función:
+
+```{r}
+KS = function(pred,y) {
+  predictions = prediction(pred,y) 
+  des = performance(predictions,"tpr","fpr")    
+  ks = max(attributes(des)$y.values[[1]]*100 - 
+           attributes(des)$x.values[[1]]*100)
+  return(ks)
+}
+```
+
++ Calcule el KS para los 3 modelos generados anteriormente.
+```{r}
+KS1= KS(as.numeric(pred1), test$cliente)
+KS2= KS(as.numeric(pred2), test$cliente)
+KS3= KS(pred3, test$cliente)
+
+round(c(KS1, KS2,KS3),1)
+```
+
+
++ Modifique la función `eval` para que devuelva el `AUC` y el `KS`.
+```{r}
+eval= function (y, pred){
+  confu= table(y, pred)
+  e= 1- sum(diag(confu))/sum(confu)
+  falsos= 1- diag(confu)/ apply(confu, 1, sum)
+  error= c(e, falsos)*100
+  auc= curvaROC(pred, y)$auc
+  KS= KS(pred,y)
+  indicadores= c(error, auc, KS)
+  names(indicadores)= c("e", "FP", "FN","AUC","KS")
+  return(list(Matriz= confu, indicadores=  indicadores))
+}
+
+#el KS es la diferencia mas grande entre la curva y la linea punteada
+```
+
+
++ Haga una tabla con los resultados de los 3 modelos.
+```{r}
+(f1= eval(test$cliente, as.numeric(pred1)))
+```
+
+```{r}
+(f2= eval(test$cliente, as.numeric(pred2)))
+```
+
+```{r}
+(f3= eval(test$cliente, pred3))
+```
+
+```{r}
+ID= cbind(f1$indicadores, f2$indicadores, f3$indicadores)
+
+colnames(ID)= c("arbol", "logistica", "knn")
+round(ID,1)
+```
+
+
+8. Haga 10 veces la partición de base2 en conjuntos de entrenamiento (80%) y prueba (20%) y en cada caso genere un árbol de decisión basado en el conjunto de entrenamiento, calcule los indicadores de desempeño para el conjunto de validación: e, FN, FP, AUC y KS.  Haga un gráfico de estos indicadores para ver qué tanto varían e indique la media de los mismos.
+
+```{r}
+res4= matrix(nrow= 10, ncol = 5)
+colnames(res4)= c("e", "FN", "FP", "AUC","KS")
+
+for(i in 1:10){
+  s= sample(1:n, round(0.8*n))
+  train4= base2[s,]
+  test4= base2[-s,]
+  mod4= rpart(cliente~., method = "class", data= train4)
+  pred4 = predict(mod4, newdata= test4, type="class")
+  f4= eval(test4$cliente, as.numeric(pred4))
+  res4[i,]= f4$indicadores
+}
+round(res4,1)
+
+apply(res4, 2, mean)
+```
+
+
+```{r}
+matplot(res4, type="l", lty=1, ylim=c(0,100), ylab="Indicadores", xlab= "Repeticion")
+legend("topright", colnames(res4), col= 1:5, lty = 1, bty="n")
+medias4= apply(res4, 2, mean)
+abline(h= medias4, col=1:5, lty=2)
+```
+
+
+9. Haga la validación cruzada partiendo la base2 en 10 partes aproximadamente del mismo número de datos. Obtenga los indicadores de desempeño.  Use la función `createFolds` de la librería `caret`.  Haga un gráfico de estos indicadores para ver qué tanto varían e indique la media de los mismos.
+```{r}
+cortes= createFolds(1:nrow(base2),k=10)
+res5= matrix(nrow=10, ncol=5)
+colnames(res5)= c("e", "FN", "FP","AUC","KS")
+
+for(i in 1:10){
+  train5= base2[-cortes[[i]],]
+  test5= base2[cortes[[i]],]
+  mod5=rpart(cliente~ ., method = "class", data= train5)
+  pred5= predict(mod5, newdata= test5, type= "class")
+  f5= eval(test5$cliente, as.numeric(pred5))
+  res5[i,]= f5$indicadores
+}
+
+
+length(range(cortes$Fold01))
+cortes[[1]]
+
+round(res5,1)
+```
+
+```{r}
+matplot(res5, type="l", lty=1, ylim=c(0,100), ylab="Indicadores", xlab= "Corte")
+legend("topright", colnames(res5), col= 1:5, lty = 1, bty="n")
+medias5= apply(res5, 2, mean)
+abline(h= medias5, col=1:5, lty=2)
+```
+
+```{r}
+matplot(res5, type="l", lty=1, ylim=c(0,100), ylab="Indicadores", xlab= "Corte")
+legend("topright", colnames(res5), col= 1:5, lty = 1, bty="n")
+var5= apply(res5, 2, var)
+abline(h= var5, col=1:5, lty=2)
+```
+
+
+```{r}
+pred5 = c()
+for(i in 1:10){
+  train5= base2[-cortes[[i]],]
+  test5= base2[cortes[[i]],]
+  mod5=rpart(cliente~ ., method = "class", data= train5)
+  pred5=c(pred5, predict(mod5, newdata= test5, type= "class"))
+}
+
+pred5
+```
+
+```{r}
+#como acomodamos la base de pred5
+pred5 = c()
+kliente = c()
+for(i in 1:10){
+  train5= base2[-cortes[[i]],]
+  test5= base2[cortes[[i]],]
+  mod5=rpart(cliente~ ., method = "class", data= train5)
+  pred5=c(pred5, predict(mod5, newdata= test5, type= "class"))
+  kliente = c(kliente, test5$cliente)
+}
+
+(ek= eval(kliente, pred5))
+
+# los resultados tienen que ser similares
+apply(res5, 2, mean)
+```
+
+
+10. Haga 10 veces la validación cruzada de base2.  Haga un gráfico de las medias de los indicadores de desempeño para ver qué tanto varían.  
+```{r}
+medias6= matrix(nrow=10, ncol=5)
+
+for(j in 1:10){
+  cortes= createFolds(1:nrow(base2),k=10)
+  res6= matrix(nrow=10, ncol=5)
+  colnames(res6)= c("e", "FN", "FP","AUC","KS")
+
+
+
+for(i in 1:10){
+  train6= base2[-cortes[[i]],]
+  test6= base2[cortes[[i]],]
+  mod6=rpart(cliente~ ., method = "class", data= train6)
+  pred6= predict(mod6, newdata= test6, type= "class")
+  f6= eval(test6$cliente, as.numeric(pred6))
+  res6[i,]= f5$indicadores
+}
+  medias6[j,]=apply(res6,2,mean)
+}
+colnames(medias6)= colnames(res6)
+round(res5,1)
+```
+
+```{r}
+matplot(medias6, type="l", lty=1, ylim=c(0,100), ylab="Indicadores", xlab= "Repeticion de validacion")
+legend("topright", colnames(medias6), col= 1:5, lty = 1, bty="n")
+
+```
+

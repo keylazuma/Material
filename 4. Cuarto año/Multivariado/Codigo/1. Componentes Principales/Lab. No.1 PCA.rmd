@@ -1,0 +1,532 @@
+---
+title: "INTRODUCCION AL ANALISIS MULTIVARIADO"
+subtitle: Lab. No.1 - COMPONENTES PRINCIPALES
+output:
+  pdf_document: default
+  html_document:
+    highlight: tango
+    theme: cerulean
+editor_options:
+  chunk_output_type: console
+---
+
+## HEPTATLON
+
+La pentatlón se realizó por primera vez en Alemania en 1928. Inicialmente incluía lanzamiento de peso, salto largo, 100m, salto alto y javalina. En 1964 llegó a ser el primer evento olímpico combinado para mujeres y consistía en 80m vallas, lanzamiento, salto alto, salto largo y 200m. En 1977 los 200m fueron reemplazados por carrera de 800m, y desde 1981 se pasó a la heptatlón con 100m vallas, lanzamiento, salto alto, 200m, salto largo, jabalina y 800m.  Existe un sistema de puntuación que da puntos en cada evento, y la ganadora es la mujer que acumule la mayor cantidad de puntos.  
+En 1984 se realizó la heptatlón por primera vez. En 1988 en los juegos de Seúl la heptatlón fue ganada por una de las estrellas de EU, Jackie Joyner-Kersee.  
+Se cuenta con los resultados de las 25 competidoras en cada una de las 7 disciplinas. Se desea explorar estos datos usando un análisis de componentes principales para explorar la estructura de las datos y evaluar de qué forma los puntajes derivados del análisis se pueden relacionar con los puntajes totales asignados con el sistema oficial de puntuación.
+
+1. Antes de llevar a cabo cualquier análisis note que un valor alto en un resultado no siempre significa algo mejor, por ejemplo en las carreras de 200m, 800m y vallas los resultados son tiempos y se sabe que el ganador es el que haga un tiempo menor, mientras que en los saltos o lanzamientos gana el que obtenga la mayor distancia.  Por esta razón es recomendable invertir algunas variables para que todas apunten en la misma dirección.  En este caso podemos invertir “vallas”, “car200” y “car800” restando al máximo valor el respectivo valor obtenido, por lo que el perdedor tendrá un cero y los demás tendrán valores positivos hasta un máximo que será el valor del ganador. Por ejemplo:  `base$vallas=max(base$vallas)-base$vallas`.
+
+#invertir escalas
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.1 - COMPONENTES PRINCIPALES/Heptatlon.Rdata")
+ base$vallas=with(base,max(vallas)-vallas)
+ base$car200=with(base,max(car200)-car200)
+ base$car800=with(base,max(car800)-car800)
+```
+
+
+2. Obtenga y grafique las correlaciones de las 7 variables que contienen los resultados de las disciplinas (sin tomar en cuenta el “puntaje”). Incluya el diagrama de dispersión y colores para las correlaciones.  Usa la función `corrgram` de la librería `corrgram`, indicando `lower.panel=panel.pts` para que ponga los diagramas de dispersión y `order=T` para que ordene las variables según la correlación.  Pruebe también con `upper.panel=panel.conf` para que ponga los intervalos de confianza para las correlaciones y 
+`diag.panel=panel.density` para que grafique las densidades univariadas en la diagonal.
+
+#correlaciones
+```{r}
+round(cor(base[,-8]), 2)
+```
+
+#gráficos
+```{r}
+#aqui se puede observar que hay presencia de un valor extremos en todas las variables
+library(corrgram)
+ corrgram(base[,-8], lower.panel=panel.pts,order=T)
+```
+
+```{r}
+# en este grafico aparecen los intevalos de confianza de las correlaciones y de las densidades de las correlaciones
+ corrgram(base[,-8], lower.panel=panel.pts, upper.panel=panel.conf,
+ diag.panel=panel.density,order=T)
+```
+
+
++ Lleve a cabo una discusión e investigue por qué hay deportes que pueden estar más correlacionados y alguno no lo esté tanto.
+
+3. Identifique un valor extremo usando los “leverage” a partir de la matriz $H=X(X^TX)^{-1}X^T$.
+Del curso de Regresión recuerde que los “leverage” se llaman “hatvalues” en R y el límite para detectar un valor extremo es 2 veces la media de ellos.  La función para obtener los "leverage" es `hat`.
+
+#identificación de valor extremo
+```{r}
+lev=hat(base[,-8])
+ plot(lev)
+ lim=2*mean(lev)
+ abline(h=lim)
+ #hay presencia de un valor extremo, sabemos que es la jugadora 25 porque están enumeradas del 1 al 25
+```
+
+
+4. Ahora se hace una nueva base eliminando la competidora de Papua Nueva Guinea (PNG), llámela “base1”. Para esto se puede utilizar la información de la fila donde se encuentra que es la 25.  Calcule nuevamente las correlaciones y observe los cambios.
+
+#eliminación de valor extremo
+```{r}
+base1 = base[-25,]
+ base2=base1[,-8]
+ corrgram(base2, lower.panel=panel.pts, upper.panel=panel.conf,
+ diag.panel=panel.density,order=T)
+ #la mayoría de las correlaciones aumentaron, principalmente las correlaciones con la variable javalina
+```
+
+
++ A partir de ahora use solo base1 puesto que el dato 25 distorsiona mucho las correlaciones
+
+5.	Obtenga el determinante de R (matriz de correlaciones de base1).  Use la función `det` para obtener el determinante.
+
+#determinante
+```{r}
+R=cor(base2)
+ det(R)
+ #El determinante solo me sirve para ver de forma resumida la composicion de una matriz
+```
+
++	Lleve a cabo la prueba de esfericidad de Bartlett para determinar si vale la pena llevar a cabo un PCA.  Use la función `cortest.bartlett` de la librería `psych`.  Puede usar los datos o la matriz de correlaciones, pero en este caso debe indicar el tamaño de muestra en `n`.
+```{r}
+library(psych)
+```
+
+#prueba de bartlett
+```{r}
+#h0: rho es igual a la identidad, es decir no hay correlaciones entre las variables
+cortest.bartlett(R,n=nrow(base2))
+#se rechaza h0, ya que el p value es menor a 0.05, por ende hay correlaciones entre las variables del estudio
+```
+
+```{r}
+cortest.bartlett(base2)
+```
+
+
++	Evalúe el índice KMO con el mismo objetivo del punto anterior.  Use la función `KMO` de la librería `psych`.
+#KMO
+```{r}
+#se logra observar que en el caso de javalina, aportaria menos que las otras variables 
+KMO(R)
+```
+
+
+
+### ANALISIS CON MATRIZ DE VARIANZAS Y COVARIANZAS (CENTRAR)
+
+6.	Obtenga las variancias de las 7 variables y vea las diferencias que existen entre esas variancias. Además note que las variables tienen diferentes escalas por lo que más adelante convendrá estandarizar las variables, en cuyo caso se usará la matriz de correlaciones. Por ahora seguimos con las variables originales.
+
+#varianza por variables
+```{r}
+# vemos que carr 800 tiene una varianza mas grande, por lo que no estandarizarla haria que el analisis este mal realizado
+#varianza por cada variable
+v=apply(base2,2,var)
+ round(v,3)
+```
+
+
++ Obtenga la variabilidad total de las 7 variables originales.
+
+#varianza total
+```{r}
+ sum(v)
+```
+
+
++ Obtenga la matriz de covarianzas (S). 
+
+#matriz de varianzas y covarianzas 
+```{r}
+#las varianzas son la diagonal
+S=var(base2)
+ round(S,2)
+```
+
+
++ Obtenga la traza de S. Compárela con el resultado de la variabilidad total obtenido anteriormente.
+
+#traza es lo mismo que la varianza total
+```{r}
+#la suma de la gianal de una matriz, es equivalente a la variabilidad total
+sum(diag(S))
+```
+
+ 
+7.	Haga la descomposición espectral de S usando: `espec=eigen(S)`.
+```{r}
+#encontrar vectores y valores propios
+espec=eigen(S)
+```
+
+
++	Observe los valores propios con `espec$val` y los vectores con `espec$vec`.
+
+#valores propios, varianza explicada por cada componente
+```{r}
+#los lamda es igual a la varianza que va a tener cada componente principal
+lambda=espec$val
+ round(lambda,2)
+```
+
+#vectores propios "a pie"
+```{r}
+#valores (a_1) que componen los CP, cada columna corresponde a un CP
+vec=espec$vec
+ round(vec,2)
+```
+
+
+8.	Obtenga el primer componente principal usando el primer vector característico. Primero centre todas las variables sin estandarizarlas.  Para esto se puede usar scale indicando dentro de la función que use `scale=F` para que no divida entre la desviación estándar, de la siguiente forma: `scale(base2,scale=F)`. Lo anterior da todas las variables centradas y con ellas se pueden obtener los valores del primer componente llamado Z1.
+
+#primer CP
+```{r}
+basec=scale(base2,scale=F) #para centrar se coloca scale=F, para que no le aplique la escalacion *.
+ Z1=basec%*%vec[,1]# matriz de cada dato de cada variable centrada * valores de a_1 (coeficientes que usó para formar Z1)
+ Z1
+ 
+ #al estar solo centrado la interpretacion es mas dificil de hacer porque no conocemos que es considerado muy bueno o muy malo
+```
+
+
++	Obtenga la variancia de Z1.  ¿Le parece familiar este número?
+```{r}
+var(Z1)
+```
+
+
++	¿Qué porcentaje de la variabilidad total explica Z1?
+
+#variabilidad explicada por CP1
+```{r}
+lambda[1]/sum(lambda)*100
+```
+
+
++	Observe los coeficientes que usó para formar Z1 y explique cuáles variables tienen mayor peso en la conformación de esta nueva variable.  ¿Por qué sucede esto? ¿Es adecuado esto?
+
+#peso de los compomentes
+```{r}
+#carr800 es la variable que tiene mas peso en la formacion del primer componente principal, esto sucede porque era la variable que tenia mayor variabilidad en las observaciones
+round(vec[,1],2)
+```
+
+
+9.	Lleve a cabo el análisis de componentes principales de forma automática con R usando la función `prcomp`. Guarde los resultados en un objeto llamado pca1: `pca1=prcomp(base2)`.
+```{r}
+#forma rapida de obtener los CP
+pca1=prcomp(base2)
+```
+
+
++	Para ver cuáles son los componentes de “pca1” use `names(pca1)` y luego llame una a uno esos componentes (por ejemplo, `pca1$sdev`, `pca1$rotation`, etc). 
+```{r}
+names(pca1)
+```
+
+```{r}
+round(pca1$sdev,2)
+```
+
+# vectores propios
+```{r}
+#a_ii (coeficientes que usó para formar Z_i)
+#rotation es
+ round(pca1$rotation,2)
+```
+
+
++	Compare estos resultados con los obtenidos anteriormente, en particular vea que esta función devuelve las desviaciones estándar de los componentes y no las variancias, entonces eleve al cuadrado estas desviaciones y compárelas con los valores propios.
+
+#varianzas de cada CP
+```{r}
+# se elevan al cuadrado porque la funcion devuelve las ds, ya con eso obtendriamos los lamdas de la matriz
+round(pca1$sdev**2,2)
+```
+
+```{r}
+round(lambda,2)
+```
+
+
+
++	Use `summary(pca1)` para ver los porcentajes de variabilidad explicada por cada componente.
+#variabilidad explicada por cada CP
+```{r}
+#el CP 1 esta explicando un 74% de la variabilidad total
+summary(pca1)
+```
+
+
+### ANALISIS CON MATRIZ DE CORRELACIONES (ESTANDARIZAR)
+
+10.	Tome las primera variable y estandarícela.  Para estandarizar una variable X puede hacerlo de dos formas:`(X-mean(X))/sd(X)` o `scale(X)`
+
+#estandarización de una variable
+```{r}
+v1=scale(base2$vallas)
+```
+
+
++ Obtenga la media y la varianza de la variable estandarizada y verifique que la media es 0 y la varianza es 1.
+```{r}
+#sabemos que una variable estandarizada tine una media de 0 y una varianza de 1
+ mean(v1)
+```
+
+```{r}
+var(v1)
+```
+
+
++	Estandarice todas las variables. Para hacerlo de una sola vez, puede usar: `scale(base2)`.
+
+#estandarización
+```{r}
+ base3=scale(base2)
+```
+
+
++ Verifique que todas las medias son 0 y las variancias son 1.
+
+#verificación
+```{r}
+ round(apply(base3,2,mean),10)
+```
+
+```{r}
+apply(base3,2,var)
+```
+
+
+11.	Lleve a cabo el análisis de componentes principales con las variables estandarizadas.
+
++	Haga la descomposición espectral de la matriz de correlaciones y obtenga los valores propios.
+
+#valores propios o varianza de los CP
+```{r}
+#los valores de lamda son las varianzas de cada CP
+espec1=eigen(R)
+ lambda1=espec1$val
+ round(lambda1,2)
+```
+
+
++	Hágalo de forma automática con la función `prcomp`. Para indicar que se quieren estandarizar los datos use `scale=T` en la función `prcomp`. Obtenga los valores propios.
+
+#valores propios o varianza de los CP
+```{r}
+ pca1=prcomp(base2,scale=T) #se le coloca el true, usa las variables estandarizadas
+ lambda2=pca1$sdev**2
+ round(lambda2,2)
+```
+
+
+12.	Determine qué porcentaje de variabilidad es explicada por los primeros dos componentes.
+
+#variabilidad explicada
+```{r}
+#con la estandarizacion vemos que lo qu explica el CP 1 disminuyo y ahora es de 62%
+summary(pca1)
+```
+
+
+13.	Obtenga el primer vector propio y observe cuáles variables están contribuyendo a obtener este componente.
+
+#variables que aportan al CP
+```{r}
+a1=pca1$rot[,1]
+ round(a1,2)
+```
+
+
+14.	Obtenga el primer componente manualmente usando las fórmulas adecuadas y también obténgalo extrayéndolo con `pca$x`.  Compare los resultados. Llame a este componente Z1a.
+
+#CP valores
+```{r}
+Z1=base3%*%a1
+ Z1a=pca1$x[,1]
+ cbind(Z1,Z1a) #puntajes obtenidos estandarizados
+ #interpretacion
+ #Joyner-Kersee (USA) es la competidora que tiene puntucaciones muy altas en todas o casi todas las competencias
+```
+
+
+15.	Obtenga la variancia Z1a y compárela con el primer valor propio. 
+
+#varianza del CP
+```{r}
+var(Z1a)
+```
+
+```{r}
+lambda1[1]
+```
+
+
+16.	Puesto que los coeficientes para el primer componente son negativos, puede obtener una variable equivalente al multiplicar todo por -1. Obtenga Z1b y verifique que tiene la misma variancia que Z1a.
+```{r}
+Z1b=-Z1a
+ var(Z1b)
+```
+
+
+17.	Haga un biplot e interprételo. Use la función `biplot`.  Puede controlar el tamaño de las etiquetas con `cex`.
+
+
++	Trate de visualizar si hay algún agrupamiento de las atletas.
+
+#biplot
+```{r}
+biplot(pca1, cex=0.6)
+```
+
+
++ Haga un biplot usando una variable categórica para los colores, por ejemplo, el continente al que pertenece la atleta.  Para hacer un biplot más elegante se puede usar la función `ggplot_pca` de la librería `AMR`. Lo mejor es hacer un nuevo data.frame llamado `data`, donde se pone la variable categórica en la primera columna, luego los nombres de las atletas en la segunda columna y después las variables que entran en el PCA.  Luego cargue la librería `dplyr` y corra el PCA con la función `pca` de la librería `AMR`, de la siguiente forma:
+
+```{r}
+pca2=data %>%
+ pca(vallas,saltoalto,tiro,car200,saltolargo,javalina,car800)
+```
+
+```{r}
+ library(AMR)
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+ data=data.frame(c("AM","EU","EU","EU","EU","EU","OC","AM","EU",
+ "EU","EU","EU","EU","EU","EU","AS","EU","AM",
+ "EU","EU","EU","AM","AS","AS"),row.names(base2),base2)
+ names(data)=c("Continente","Nombre",names(base2))
+ pca2=data %>%
+ pca(vallas,saltoalto,tiro,car200,saltolargo,javalina,car800)
+```
+
+#biplot colores por variable categórica
+```{r}
+ ggplot_pca(pca2)
+```
+
+
+18.	Haga un gráfico de sedimentación y sugiera un número de componentes. Puede usar `plot(pca$sdev^2)` o `plot(pca)`.
+
+#gráfico de sedimentación
+```{r}
+ plot(pca1,type="l")
+```
+
+
++	Decida si el porcentaje de variabilidad explicada por esa cantidad de componentes es adecuado.
+
+#variabilidad explicada por la cantidad de componentes utilizados
+```{r}
+ sum(lambda1[1:2])/length(lambda1)
+```
+
+
++	Verifique si estos componentes cumplen los criterios 2 o 3.
+
+#verificación de criterios
+```{r}
+lambda1[1:2]
+
+#con el criterio 2 no, porque el segundo CP es menor a 1, con el criterio 3 si, porque a partir del segundo CP el gráfico tiende a nivelarse
+```
+
+
+
+19.	Reproduzca la matriz de correlaciones:
+
+#reproducir matriz de correlaciones
+```{r}
+A=pca1$rot
+ L=diag(pca1$sdev**2)
+ R1=A%*%L%*%t(A)
+ round(R1,2)
+```
+
+```{r}
+round(R,2)
+```
+ 
+ #verificación
+```{r}
+round(abs(R1-R),10)
+```
+
+
+
+
++	Usando todos los componentes.
+
++	Ahora con sólo dos componentes obtenga una predicción de R y vea las discrepancias. Para facilidad vea las discrepancias con solo un decimal. 
+
+#discrepancias en la matriz de correlaciones si no se usan todos los CP
+```{r}
+A2=pca1$rot[,1:2]
+ L2=diag(lambda1[1:2])
+ R2=A2%*%L2%*%t(A2)
+ round(R2-R,1)
+```
+
+
++	Haga lo mismo con tres componentes y decida si vale la pena usar 3 componentes.
+```{r}
+A3=pca1$rot[,1:3]
+ L3=diag(lambda1[1:3])
+ R3=A3%*%L3%*%t(A3)
+ round(R3-R,1)
+```
+
+
+
+20.	Obtenga la correlación entre cada variable original y Z1a o Z1b (use los datos).
+
+#correlación entre variables y CP
+```{r}
+cor(base2,Z1a)
+```
+
+
++	Obtenga las correlaciones a partir del primer valor propio y el primer vector propio. Compare los resultados.
+
+#correlación a partir valor propio y vector propio
+```{r}
+a1*sqrt(lambda1[1])
+```
+
+
++	Observe los valores de Z1a y Z1b para comprender el significado del valor que obtuvo la atleta que tuvo el mejor rendimiento.
+```{r}
+ cbind(Z1a,Z1b)
+```
+
+
+
+21.	Realice una regresión usando los dos primeros componentes como predictores y el puntaje como respuesta.
+```{r}
+Z1=pca1$x[,1]
+ Z2=pca1$x[,2]
+ Y=base1$puntaje
+ mod=lm(Y~Z1+Z2)
+```
+
+```{r}
+summary(mod)
+```
+
+
++	¿Cuál de los dos componentes está influyendo más en el puntaje final del atleta?
+
++	¿Tiene alguna importancia el signo del coeficiente del Z1?
+
++	Escriba la ecuación de regresión resultante en términos de las variables originales.
+
+
+
+
+

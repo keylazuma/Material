@@ -1,0 +1,54 @@
+---
+title: "INTRODUCCION AL ANALISIS MULTIVARIADO"
+subtitle: Escalamiento Multidimensional
+output:
+  pdf_document: default
+  html_document:
+    highlight: tango
+    theme: cerulean
+editor_options:
+  chunk_output_type: console
+---
+
+1. Cargue la base, y nombrela "base" con el siguiente comando
+
+````markdown
+base<-cbind(c(3,5,6,1,4,2,0,0,7,2),
+            c(4,1,2,1,7,2,4,6,6,1),
+            c(4,1,0,1,3,5,1,4,5,4),
+            c(6,7,2,0,6,1,1,3,1,3),
+            c(1,3,6,3,2,0,1,5,4,1))
+````
+
+
+2. Calcule la matriz de distancias euclídeas y nombrela "d"
+
+3. Realize el escalamiento multidimensional y nombrelo "cmds" con el siguiente comando:
+
+ 'cmds<-cmdscale(d,k=5,eig=TRUE,x.ret=TRUE)', donde
+ 
++ d <- es la matriz de distancias
++ k <- indica el número de dimensiones requeridas 
++ eig <- indica si debería devolver los valores propios 
++ X.ret <- devuelve parte de la matriz B (La matriz B se obtiene multiplicando (-1/2)*cmds$x)
+
+
+
+4. Calcule la matriz B y compárela con la que se obtiene directamente en R. Los elementos de la matriz B se pueden obtener de acuerdo a las fórmulas vistas en la presentación en clase o también utilizando la siguiente fórmula: $B=-\frac{1}{2}CD^2C$. Donde $D^2$ es la matriz de distancias al cuadrado y $C$ está definida como $C=I-\frac{1}{n}J_n$. Aquí $I$ es la matriz identidad de dimensión $n \times n$ y $J_n$ es una matriz de unos, de dimensión  $n \times n$.
+
+5. Obtenga los valores propios con el comando 'cmds$eig' y también obténgalos de la matriz B que calculó en el punto anterior y compruebe que son los mismos.
+
+6. Calcule la bondad de ajuste usando los dos criterios vistos en clase y escoja un k número de dimensiones según esos criterios.
+  
+7. Calcule el stress para cada k dimensiones, $k=1,\dots,5$, y escoja un valor de k de acuerdo a este criterio. Las nuevas coordenadas se obtienen con el comando 'cmds$points'.
+
+
+8. ¿Coinciden los tres criterios? ¿Cuál valor de k seleccionaría?
+
+9. Calcule los puntos en las nuevas coordenadas y compárelos con los valores obtenidos automáticamente en R (cmds$points). Haga un gráfico de esos puntos. 
+
+10. ¿Con qué otro método se pudo haber obtenido mismo resultado? Grafique con dos dimensiones ambos métodos.
+  
+11. Repita las preguntas de la 2 a la 9 pero ahora con las distancias de Manhattan y Mahalanobis.
+ 
+

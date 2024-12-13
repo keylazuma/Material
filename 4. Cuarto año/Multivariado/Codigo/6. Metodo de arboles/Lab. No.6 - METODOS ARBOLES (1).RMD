@@ -1,0 +1,403 @@
+---
+title: "INTRODUCCION AL ANALISIS MULTIVARIADO"
+subtitle: "Lab. No.6 - Métodos basados en árboles"
+output:
+  html_document:
+    highlight: tango
+    theme: cerulean
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+
+## ARBOLES DE DECISION
+  
+1. Cargue los paquetes `rpart`, `rattle` , `DT`, `adabag` y `randomForest`.
+```{r}
+library(rpart)
+library(rattle)
+library(DT)
+library(adabag)
+library(randomForest)
+```
+
+
+2. Cargue los datos de la base `Credit.Rdata`.  Vea la cantidad de filas y columnas de `base2`.
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.6 - METODOS ARBOLES/Credit.Rdata")
+```
+
+
+3. Muestre 1000 registros usando la función `datatable`, de tal forma que aparezcan 10 registros a la vez, de la siguiente forma:
+```{r}
+datatable(head(base2,1000), options = list(pageLength=10, scrollX=T))
+```
+
+
+
+4. Divida el archivo de datos en dos: uno para entrenar llamado `train` (80%) y el otro para validación llamado `test` (20%).  Para reproducir los resultadas, use una semilla en 10, pero antes debe correr la siguiente instrucción una sola vez: `RNGkind(sample.kind = "Rounding")`.
+```{r}
+RNGkind(sample.kind = "Rounding")
+```
+
+```{r}
+set.seed(10)
+n= nrow(base2)
+s= sample(1:n, round(0.8*n))
+train=base2[s,]
+test=base2[-s,]
+```
+
+
+5. Obtenga las dimensiones de la base de entrenamiento y de la base de validación.
+```{r}
+dim(train)
+```
+
+```{r}
+dim(test)
+```
+
+6. Use la función `rpart` para generar el árbol con parámetros por defecto. Use todas las variables de la base de entrenamiento como predictores y cliente como respuesta. 
+
+```{r}
+mod1=rpart(cliente~., method="class", data= train)
+```
+
+
+7. Obtenga una representación gráfica del árbol de decisión con la función `fancyRpartPlot`. Escoja los colores con `palettes`:
+```{r}
+fancyRpartPlot(mod1, palettes = c("Greens", "Reds"))
+```
+
+
++ Cuántos nodos termi<nales tiene este árbol?
+```{r}
+#solo es de contar los nodos finales
+
+#hacer la base de los 8 nodos finales y la tabla para ver el error final de clasificación
+```
+
+
+
++ Cuál es la profundidad de este árbol?
+```{r}
+# son 6 que son los niveles que cuentael arbol
+```
+
+
++ Cuántos individuos hay en el nodo terminal de la izquierda?  Haga una base que seleccione a todos los individuos de ese nodo y vea cuántos elementos tiene. Luego saque el porcentaje que representa esa cantidad del número de individuos de la base de entrenamiento.  Compare ese porcentaje con el que da el nodo.
+```{r}
+basen= train[train$antig_laboral>= 2.5 & train$ahorro>= 1850,]
+nrow(basen)/nrow(train)*100
+```
+
+
++ Obtenga la proporción de buenos que hay en ese nodo a partir de la base que hizo anteriormente.  Compare con lo que dice en el nodo.
+```{r}
+prop.table(table(basen$cliente))
+```
+
+
+8. Haga la clasificación manualmente del primer registro de la base de validación. Observe si el árbol lo clasifica como bueno o malo y compárelo con la clasificación real de esta persona. 
+```{r}
+test[1,] #revisar las condiciones para saber como lo está clasificado el arbol
+```
+
+```{r}
+test$cliente[1]
+
+#La primera pregunta es sobre antiguedad laboral (si es mayor a 2.5 o no), esta persona tiene 17 años de antiguedad por lo que es mayor a 2.5 y debe ir hacia la izquierda. Luego se pregunta por el ahorro (si es mayor a 1850 o no), el cual es 8300 que es mayor a 1850, por lo que debe ir a la izquierda y termina clasificada como bueno. El valor rea de esa persona tambien es "bueno"
+```
+
+
+9.  Haga la clasificación de todos los registros de la base de predicción usando la función `predict` con `newdata=test` y `type="class"`.  Ponga los resultados en una base nueva. Verifique que la primera persona es clasificada como "bueno".
+```{r}
+pred= predict(mod1, newdata = test, type= "class")
+pred[1]
+
+#se verifica que la primera persona es clasificada como "bueno"
+```
+
+
+10.  Agregue la clasificación obtenida para los registros como una nueva colmuna de la base de predicción.
+```{r}
+test$pred= pred
+head(cbind(test$cliente, test$pred), 50)
+```
+
+
+11. Haga una tabla para comparar la clasificación original con la obtenida mediante el árbol.
+```{r}
+table(test$cliente, test$pred)
+```
+
+
+12. Haga nuevamente un árbol cambiando algunos parámetros:
+
+* Número mínimo de observaciones para que un nodo se pueda dividir: $minsplit = 5\% * 3556 = 177$. 
+
+* Número mínimo de observaciones que debe tener un nodo para ser considerado como terminal: $minbucket = 2\% * 3556 = 71$.
+
+* Profundidad máxima del árbol (con el nodo raíz contabilizado como 0): $maxdepth = 6$. 
+
+* Parámetro de complejidad: $cp = 0.004$.
+```{r}
+mod2= rpart(cliente~., method = "class", data = train, minsplit=177, minbucket= 71, maxdepth= 6, cp=0.004)
+
+#177 y 71 implica que un nodo terminal no pueda ser menor de 71 y si tengo mas de 177 lo puedo partir (no necasariamente lo tengo que partir obligatoriamente) si puedo partirlo queda siendo el nodo terminal
+
+# la complejidad se refiere a la cantidad de ramas que pued llegar a tener el arbol
+```
+
+
+13. Obtenga la representación gráfica.
+```{r}
+fancyRpartPlot(mod2,palettes = c("Greens", "Reds"), sub = "")
+#el primer nodo no se cuenta porque es el nodo cero, por lo cual este nodo tiene 4 de profundidad
+```
+
+
++ ¿Cuántos nodos termiales tiene este árbol?
+```{r}
+#9
+```
+
+
++ Cuál es la profundidad de este árbol?
+```{r}
+#4
+```
+
+
+14. Obtenga manualmente la clasificación del registro 164 de la base de validación.  Hágalo con el árbol original y con el segundo árbol. Compare los resultados.
+```{r}
+test[164,]
+#en el primer arbol basta ver que esta persona tiene un 2 en antiguedad laboral (no cumple> 2.5) por lo que debe ir a la derecha,luego el monto financiado es de 0.67 (cumple < 0.72) por lo que va a la izquierda y termona como "bueno". En cambio en el segundo arbol, despues del segundo paso que va a la izquierda debe preguntar por el trabajo si es asalariado, como es temporal debe de ir a la derecha y luego preguntar por el porcentaje de ahorro que es 0 (no cumple > 0.42), de este forma vuelve a ir a la derecha y termina clasificado como "malo"
+```
+
+
++ Haga la clasificación automática para encontrar en qué clase se clasificó este individuo.
+```{r}
+test$pred2= predict(mod2, newdata= test, type = "class")
+test$pred[164]
+
+test$pred2[164]
+```
+
+
+15. Obtenga nuevamente la clasificación de todos los registros de la base de predicción y haga nuevamente la tabla cruzada.
+```{r}
+pred2= predict(mod2, newdata= test, type = "class")
+table(test$cliente, pred2)
+```
+
+
+16. Para ilustrar el uso de variables ordinales, se va a usar la variable **vivienda** sin declararla como ordinal y luego se declarará como ordinal.  Haga un árbol usando como predictores **vivienda** y **antig_laboral**.  Muestre el árbol.
+```{r}
+mod3= rpart(cliente~ vivienda+ antig_laboral, method= "class", data= train)
+
+fancyRpartPlot(mod3,palettes = c("Greens", "Reds"), sub="")
+```
+
+
+17. Declare la variable vivienda como ordinal de la siguiente forma:
+
+```{r}
+factor(train$vivienda2,ordered = TRUE, levels = c("padres", "alquilada", "propia","contrato priv", "otro"))
+```
+
+```{r}
+train$vivienda2 = train$vivienda
+train$vivienda2 = factor(train$vivienda2, ordered= TRUE, levels= c("padres","alquilada", "propia","contrato priv", "otro"))
+```
+
+
+18. Obtenga el árbol nuevamente y compárelo con el anterior.
+
+```{r}
+mod4= rpart(cliente~ vivienda2+ antig_laboral, method= "class",data= train)
+
+fancyRpartPlot(mod4,palettes = c("Greens", "Reds"), sub="")
+```
+
+
++ Elimine la variable vivienda2 de train para futuros ejercicios.
+
+```{r}
+train= train[,-20]
+```
+
+## BAGGING
+
+19. Usando la misma base de entrenamiento (train) se realizará una agregación de bootstrap para predecir el tipo de cliente usando árboles de decisión.
+
++ Haga un modelo clasificación de train, usando la función `bagging` de la librería `adabag`.  Indique `method = "class"` y `mfinal = 19`, este es el número de muestras de bootstrap que se usarán para construir los árboles de decisión.
+```{r}
+mod5= bagging(cliente~., method="class", data= train, mfinal=19)
+```
+
+
+20. Extraiga el primer árbol generado con `mod5$trees[[1]]`.  
+```{r}
+mod5$trees[[1]]
+```
+
+
++ Use ese árbol para hacer la clasificación de los clientes de la base de validación con `predict(mod5$trees[[1]],test,type="class")`.
+```{r}
+predict(mod5$trees[[1]], test, type="class")
+```
+
+
++ Use cada árbol para hacer la clasificación de los clientes de la base de validación.  Almacene las predicciones en una matriz con 19 columnas.
+```{r}
+tab=matrix(nrow=nrow(test),ncol= 19)
+for(i in 1:19) tab[,i]=predict(mod5$trees[[i]], test, type="class")
+```
+
+
++ Vea en qué clase se clasificó el segundo cliente en los 19 árboles.
+```{r}
+tab[2,]
+```
+
+
++ Encuentre la moda de los 19 árboles para cada cliente.  Use la función `mlv` de la librería `modeest`. Puede usar esta función dentro de un `apply` por filas (indicando 1).
+```{r}
+library(modeest)
+pred1= apply(tab,1,mlv)
+pred1
+```
+
+
+21. Obtenga la clasificación automática de los clientes de la base de validación con la función `predict`, indicando al final `$class`.  Compare los resultados con los obtenidos en el punto anterior.
+```{r}
+pred2=predict(mod5,test)$class
+table(pred1, pred2)
+```
+
+```{r}
+table(test$cliente, pred2)
+```
+
+
++ Haga la tabla de confusión.
+
+## BOSQUES ALEATORIOS
+
+22. Usando de entrenamiento (train) se realizará un bosque aleatorio para predecir el tipo de cliente.
+
++ Haga un modelo clasificación de train, usando la función `randomForest` de la librería `randomForest`.  Indique `method = "class"` y `ntree = 100`, este es el número de árboles de decisión. El número de variables que se usa en cada árbol está determinado por el parámetro `mtry`. Se usa el default para `mtry = sqrt(p)`, donde p es el número de variables usadas en general.
+
+```{r}
+mod6 = randomForest(cliente ~ ., method= "class", data=train, ntree= 100)
+```
+
+
+23. Obtenga la clasificación automática de todos los clientes de test con la función `predict`. 
+
+```{r}
+pred3=predict(mod6,test)
+```
+
+
++ Haga la tabla de confusión.
+
+```{r}
+table(test$cliente, pred3)
+```
+
+
+## POTENCIACION (BOOSTING)
+
+24. Usando de entrenamiento (train) se aplicará el algoritmo de potenciación para predecir el tipo de cliente.
+
++ Haga un modelo clasificación de train, usando la función `boosting` de la librería `adabag`.  Indique `boos = TRUE` y `mfinal = 50`, este es el número de árboles de decisión o número de iteraciones. 
+
+```{r}
+mod7= boosting(cliente~ ., train, boos= TRUE, mfinal= 50)
+```
+
+
+25. Obtenga la clasificación automática de todos los clientes de test con la función `predict` indicando `$class`  
+```{r}
+pred5= predict(mod7,test)$class
+```
+
+
++ Haga la tabla de confusión.
+```{r}
+table(test$cliente, pred5)
+```
+
+
+26. Verifique la forma en que la función está dando peso a cada árbol. Primero obtenga los pesos de cada árbol ($\alpha_j$) con `mod7$weights`.
+
+```{r}
+mod7$weights
+```
+
+
++ Use el `predict` de cada árbol con la base de validación de esta forma:  `predict(mod7$trees[[1]],test)[,2]>0.5`.  Se usa la segunda columna porque en ella están las probabilidades de "malo" que en este caso es el éxito.
+
+```{r}
+predict(mod7$trees[[1]], test)[,2]> 0.5
+```
+
+
++ Use cada árbol para hacer la clasificación de los clientes de la base de validación.  Almacene las predicciones en una matriz con 50 columnas llamada `tab`.
+
+```{r}
+tab= matrix(nrow = nrow(test), ncol=50)
+for(i in 1:50){
+  tab[,i]= predict(mod7$trees[[i]], test)[,2]>0.5
+}
+```
+
+
++ Convierta los resultados de la clasificaicón: FALSE en -1 y TRUE en 1 y llámelo `tab1`.
+
+```{r}
+tab1= 1*(tab== TRUE)-1*(tab == FALSE)
+```
+
+
++ Observe cómo ha sido clasificado el primer cliente de la base de validación en los 50 árboles.
+
+```{r}
+tab1[1,]
+```
+
+
++ Multiplique la primera fila de `tab1` por el vector de pesos.
+```{r}
+tab1[1,]%*%mod7$weights
+```
+
+
++ Clasifique al cliente como "bueno" si ese resultado es negativo y como "malo" si es positivo.
+```{r}
+#Se clasifica como bueno
+```
+
+
++ Multiplique toda la matriz `tab1` por el vector de pesos y clasifique los clientes usando el mismo criterio.
+
+```{r}
+res= tab1%*%mod7$weights
+res
+```
+
+```{r}
+pred5= 1*(res>0)-1*(res<0)
+```
+
+
++ Compare esta clasificación con la obtenida anteriormente de forma automática.
+
+```{r}
+table(pred4,pred5)
+```
+

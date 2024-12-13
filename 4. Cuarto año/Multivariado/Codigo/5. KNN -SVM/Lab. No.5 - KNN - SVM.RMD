@@ -1,0 +1,227 @@
+---
+title: "INTRODUCCION AL ANALISIS MULTIVARIADO"
+subtitle: Lab. No.5 - KNN - SVM - ENSAMBLE
+output:
+  html_document:
+    highlight: tango
+    theme: cerulean
+  pdf_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+Se quiere predecir el tipo de cliente (bueno o malo) usando las siguientes variables que se analizan antes de otorgar un crédito:
+
+* edad: edad del cliente en años cumplidos.
+* antig_laboral: antiguedad laboral del cliente en años.
+* vivienda: tipo de vivienda (propia, padres, alquilada, contrato privado y otros).
+* estado_civil: estado de civil del cliente (soltero, casado, separado, divorciado y viudo).
+* trabajo: tipo de trabajo del cliente (asalariado, independiente, temporal y otros).
+* ingreso: salario mensual del cliente.
+* gasto: gasto mensual del cliente.
+* deuda: deuda mensual del cliente.
+* ahorro: deuda mensual del cliente.
+* patrimonio: valor del patrimonio de cliente.
+* porc_deuda: $\frac{deuda}{ingreso} * 100$
+* porc_ahorro: $\frac{ahorro}{ingreso} * 100$
+* porc_gasto: $\frac{gasto}{ingreso} * 100$
+* sobreendeudado: 1 si el cliente esta sobreendeudado y 0 si no.
+* plazo: plazo del préstamo solicitado.
+* monto: monto del préstamo solicitado.
+* garantia: valor de la garantia.
+* montoGarantia: $\frac{monto}{garantia} * 100$
+
+## K VECINOS MAS CERCANOS 
+
+1. Cargue los paquetes  `caret`, `DT`, `ROCR`, `class`,  `kknn`, `e1071`, `adabag` y `randomForest`. Se utilizará la base2 que se encuentra en "Credit.Rdata"
+```{r}
+library(caret)
+library(DT)
+library(ROCR)
+library(class)
+library(kknn)
+library(e1071)
+library(plotly)
+library(adabag)
+library(randomForest)
+```
+
+
+2. Procedimiento manual:
+
+a) Use los primeros 50 datos de base2 para entrenamiento y los siguientes 10 para validación.  Forme las dos bases.  
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.5 - KNN - SVM/Credit.Rdata")
+```
+
+```{r}
+train= base2[1:50, -(3:6)]
+test= base2[51:60, -(3:6)]
+```
+
+#duda
+b) Haga la clasificación manualmente usando 3 vecinos más cercanos de los 10 datos de validación, usando las distancias a los 50 datos de entrenamiento. Use la distancia euclídea. La variable "cliente" indica el grupo y es la variable objetivo. 
+```{r}
+pred= c()
+for( i in 1:10){
+  d= as.matrix(dist(rbind(train[,-1], test[i, -1])))[51,-51] # uno mas de la base 
+  o= order(d)
+  clas= train[o,][1:3,1]
+  tab=table(clas)
+  pred[i]= names(tab)[which(tab==max(tab))]
+}
+
+pred
+```
+
+
+c) Use la función `knn` de la librería `class` de la siguiente forma `knn(train,test,clase,k = 3)`, donde `train` son los datos de entrenamiento (sin la variable objetivo), `test` son los datos de validación y `clase` es la variable objetivo de la base de entrenamiento.
+```{r}
+pred2= knn(train[,-1], test[,-1], train$cliente, k=3)
+```
+
+
+d) Verifique que la clasificación manual coincide con la realizada con la función `knn`.
+```{r}
+table(pred, pred2)
+```
+
+
+3. Validación entrenamiento/prueba:
+
+a) Escoja solo las variables numéricas de base2 y estandarícelas.  Luego pegue la variable objetivo y llame a esta base3.
+```{r}
+base3= data.frame(scale(base2[,-c(1, 3:6)]))
+base3$cliente= base2$cliente
+names(base3)
+```
+
+
+b) Haga una base de entrenamiento con el 80% de los datos y una base de prueba con el resto.
+```{r}
+set.seed(10)
+n= nrow(base3)
+s= sample(1:n, round(0.8*n))
+train= base3[s,]
+test= base3[-s,]
+```
+
+
+c) Lleve a cabo la clasificación usando diferentes cantidades de vecinos y almacene el error de clasificación. Decida un número adecuado de vecinos.
+#DUDA
+```{r}
+E= c()
+for(k in 1:15){ 
+  pred= knn(train[, -15], test[, -15], train$cliente, k=k)
+  confu= table(test$cliente, pred)
+  error= 1- sum(diag(confu))/sum(confu)
+  E[k]= error
+}
+
+plot(E, pch=18) #QUE ES LO QUE ESTOY GRAFICANDO
+```
+
+
+
+## MAQUINAS VECTORIALES DE SOPORTE
+
+4. Usando la misma base de entrenamiento anterior se realizará un SVM para predecir el tipo de cliente usando la función de Kernel Radial para la base de validación o prueba.
+
+a) Haga un modelo clasificación usando la función `svm` de la librería `e1071`.  Indique `kernel = "radial"` y `probability = TRUE`. Use la base de entrenamiento.
+```{r}
+mod1= svm(cliente~., kernel="radial", probability= TRUE, data= train)
+```
+
+
+b) Haga la tabla de confusión con la base de validación
+```{r}
+pred1= predict(mod1, newdata= test)
+table(test$cliente,pred1)
+```
+
+
+5. Repita los pasos anteriores:
+#para que se cambia el kernel
+a) Prediga el incumplimiento en la base de validación usando el kernel sigmoidal (`kernel = "sigmoid"`) con la base de entrenamiento.
+```{r}
+mod2= svm(cliente~., kernel="sigmoid", probability= TRUE, data= train)
+pred2=predict(mod2, newdata= test)
+table(test$cliente,pred2)
+```
+
+
+b) Repita el ejercicio usando el kernel lineal (`kernel = "linear"`).
+```{r}
+mod3= svm(cliente~., kernel="linear", probability= TRUE, data= train)
+pred3=predict(mod3, newdata= test)
+table(test$cliente,pred3)
+```
+
+
+6. Vea el summary de cada modelo y observe cuantos vectores de soporte se requirieron para hacer la función discriminante en cada caso.
+#donde veo cuantos vectore se requieren para la funcion discrimante
+```{r}
+summary(mod1)
+summary(mod2)
+summary(mod3)
+```
+
+
++ Obtenga la suma de la diagonal de cada matriz de confusión para determinar cuántos casos fueron bien clasificados en cada caso. ¿En cuál de ellos se  hizo una mejor clasificación?
+
+```{r}
+sum(diag(table(test$cliente, pred1)))
+```
+
+```{r}
+sum(diag(table(test$cliente, pred2)))
+```
+
+```{r}
+sum(diag(table(test$cliente, pred3)))
+```
+
+
+7. Compare los resultados con los obtenidos con otros métodos:
+
+a) Compárelo con el método de 9 vecinos más cercanos.
+```{r}
+pred9= knn(train[,-15], test[, -15], train$cliente, k=9)
+sum(diag(table(test$cliente, pred9)))
+```
+
+b) Compárelo con una regresión logística.
+
+```{r}
+mod4= glm(cliente~., family = binomial, data= train)
+pred4= predict(mod4, newdata= test, type= "response")> 0.5
+
+sum(diag(table(test$cliente, pred4)))
+```
+
+
+c) Verifique si hay se puede asumir que las matrices de covarianza de los dos grupos son iguales.
+
+```{r}
+library(biotools)
+```
+
+```{r}
+boxM(train[,-15], train$cliente)
+```
+
+
+d) Obtenga la clasificación de los datos de validación con el análisis discriminante adecuado y compárela con los otros métodos.  Se usa "lda" si es lineal y "qda" si es cuadrático.
+
+```{r}
+library(MASS)
+mod5= qda(cliente~., prior= c(0.5,0.5), data= train)
+
+pred5= predict(mod5, newdata= test)$class
+
+sum(diag(table(test$cliente, pred5)))
+```
+
+
+
+

@@ -1,0 +1,469 @@
+---
+title: "INTRODUCCION AL ANALISIS MULTIVARIADO"
+subtitle: "Lab. No.4 - LOGISTICA MULTINOMIAL Y DISCRIMINANTE"
+output:
+  html_document: 
+    highlight: tango
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+### IRIS
+
+La base de datos Iris corresponde a Fisher o a Anderson y es famosa. Se cuenta con las medidas en centímetros de un conjunto de 150 flores: largo y ancho del sépalo, largo y ancho del pétalo. Se cuenta con 50 flores de cada una de 3 especies: Iris setosa, versicolor, y virginica.  Los datos se encuentran en el archivo `iris.Rdata`.
+ 
+1. Haga una base con una muestra de 100 flores. Use RNGkind(sample.kind = "Rounding") y set.seed(10). La base de aprendizaje se llamará `basea` y la de validaciónse llamará `basev`. 
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.4 - MULTINOMIAL Y DISCRIMINANTE/iris.Rdata")
+
+RNGkind(sample.kind = "Rounding")
+```
+
+```{r}
+set.seed(10)
+n= nrow(base)
+m= sample(1:n, 100)
+
+basea= base[m,]
+basev= base[-m,]
+```
+
+
++ Observe cuántos datos quedaron en la base de entrenamiento de cada especie.
+```{r}
+table(basea$especie)
+```
+
+
++ Cómo podría hacerse para tener el mismo número de datos de cada especie en la base de entrenamiento? (no tiene que hacerlo)
+```{r}
+basea= matrix(nrow = 0, ncol= ncol(base))
+for (i in 1:3){
+  b=base[base$especie== levels(base$especie)[i],]
+  n=sample(1:nrow(b),33)
+  basea= rbind(basea, b[n,])
+  
+}
+
+table(basea$especie)
+
+```
+
+
+2.	Visualice los datos de la base de aprendizaje por pares de variables poniendo colores por especie.	
+
+```{r}
+sp= unclass(basea$especie) #me enumera las clases, para que me pueda colorear los puntos por numeros
+pairs(basea[,-5], col= sp, pch=18)
+```
+
+
++	Observe el comportamiento de los dos tipos para las diferentes combinaciones de variables.  Vea en particular si algunas de ellas serían suficientes para clasificar.
+
+```{r}
+#los grupos estan definidos y con algunos pares de variables se logra clasificar bien las flores en sus grupos, por ejemplo con el ancho y largo de petalo hay una buena definicion de los tres grupos
+```
+
+
+3.	Proponga un modelo logístico multinomial y estime sus parámetros usando la base de entrenamiento.  Use la función `multinom` de la librería `nnet`.
+
+```{r}
+library(nnet)
+mod1= multinom(especie~., basea)#el punto es para que tome todas las variables de la base de datos,excluyendo la dependiente
+```
+
+```{r}
+summary(mod1)
+```
+
+
++ Observe si hubo convergencia.  Qué se entiende con que hay convergencia?  Qué se podría hacer si no hubiera convergencia?
+```{r}
+mod1$convergence # 1 significa que si hubo convergencia
+```
+
+
++ Tome el individuo 32 de la base de validación.  Cuáles son los valores de las 4 variables para ese individuo?  A cuál especie pertenece?
+```{r}
+basev[32,]
+
+#la especie a la que pertenece es la vesicolor
+```
+
+
++ Obtenga la parte lineal para ese individuo en cada ecuación (versicolor y virginica).
+
+```{r}
+x= cbind(1, basev[32,1:4])#coef del sujeto 32
+beta1= summary(mod1)$coefficients[1,]#coef del modelo
+beta2= summary(mod1)$coefficients[2,]
+
+PL1= sum(x*beta1)
+PL2= sum(x*beta2)
+#con los coeficientes que obtuve en la basea, voy a predecir a que especie corresponde cada uno de los individuos que no use en la creacicon del modelo, por eso en "x" uso basev
+```
+
+
++ Obtenga la probabilidad de pertenencia a la especie versicolor para ese individuo. Use 3 decimales.
+```{r}
+den= 1+exp(PL1)+exp(PL2)
+round(exp(PL1)/den,3)
+```
+
+
++ Obtenga la probabilidad de pertenencia a la especie virginica para ese individuo. Use 3 decimales.
+```{r}
+round(exp(PL2)/den,3)
+```
+
+
++ Obtenga la probabilidad de pertenencia a la especie setosa para ese individuo. Use 3 decimales.
+```{r}
+round(1/den,3)
+```
+
+
++	Obtenga las probabilidades de pertenencia a cada especie para los individuos de la base de validación usando `predict`, indique `type="probs"` para obtener las probabilidades.  Extraiga las probabilidades para el individuo 32 (use 3 decimales).
+```{r}
+probs= predict(mod1, basev, type="probs")
+round(probs[32,],3)#solo lo de la 32
+
+
+
+x= as.matrix(cbind(1, basev[,1:4]))
+beta1= summary(mod1)$coefficients[1,]
+beta2= summary(mod1)$coefficients[2,]
+
+PL1= x%*%beta1
+PL2= x%*%beta2
+
+den= 1+exp(PL1)+exp(PL2)
+probstot= cbind(1/den,exp(PL1)/den, exp(PL2)/den)
+round(probstot, 3)
+
+round(probs, 3)
+```
+
+
++	Haga la tabla de confusión al clasificar los datos de la base de validación.  Para obtener la clasificación use `predict` pero elimine `type="probs"`.
+```{r}
+sp2=predict(mod1, basev)
+table(basev$especie, sp2)
+
+
+#saber cuales son las especies mal clasificadas
+which(basev$especie== "versicolor"&sp2=="virginica")
+round(probs[c(31,36),],3) #probabilidad de las mal clasficadas
+```
+
+
++	Realice el proceso de selección de variables  hacia atrás. ¿Cuál resultado es más conveniente?   Use la función  `step(mod1)` que usa el criterio de Akaike.  
+```{r}
+step(mod1)
+#el proceso se detienen despues de haber eliminado el ancho del sepalo y del petalo y se dejan las otras dos variables de largo 
+```
+
++ Obtenga la tabla de confusión y compárela con la obtenida con el modelo completo.  Para almacenar el resultado del step en mod2, haga `mod2=step(mod1)` 
+```{r}
+mod2= step(mod1)
+#hay que tomarlo muy en cuenta en la clasificacion
+
+summary(mod2)
+
+table(basev$especie, predict(mod2,basev))
+table(basev$especie, predict(mod1,basev))
+
+#la eliminacion de variables de ancho no perjudico sustancialmente la clasificacion en la base de validacion. Solo un individuo adicional fue mal clasificado
+```
+
+
+### SECUNDARIA
+
+El conjunto de datos contiene variables sobre 200 estudiantes. Los estudiantes que ingresan a la escuela secundaria hacen la elección de un programa de tres posibles: general, vocacional y académico. Su elección puede ser modelada usando algunas variables predictoras. A continuación, se describen las variables:
+
+genero: género del estudiante (femenino, masculino).
+
+nivelsocio: estrato socioeconómico (bajo, medio, alto).
+
+tipo: tipo de escuela (privada, publica).
+
+programa: tipo de programa elegido por el estudiante (general, vocacional, académico).
+
+lectura, escritura, mate, ciencias y sociales son variables continuas que representan los puntajes en cada una de esas materias.  Los datos se encuentran en el archivo `secundaria.Rdata`.
+
+
+1. Cargue la base y observe cuántos estudiantes hay de cada programa. 
+
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.4 - MULTINOMIAL Y DISCRIMINANTE/secundaria.Rdata")
+```
+
+```{r}
+table(base$programa)
+```
+
+
+2. Corra un modelo de regresión logística multinomial para el programa como respuesta. Use como predictores el género, el estrato socioeconómico y el tipo de colegio como predictores.
+
+```{r}
+mod1= multinom(programa~ genero+nivelsocio+ tipo, base)
+```
+
+```{r}
+summary(mod1)
+```
+
+
++ Observe cuántos individuos hay en cada combinación de la variable respuesta y cada predictor.
+
+```{r}
+table(base$programa, base$tipo)
+```
+
+```{r}
+table(base$programa, base$genero)
+```
+
+```{r}
+table(base$programa, base$nivelsocio)
+```
+
+
++ Note que solo hay dos estudiantes de escuela privada en vocacional. Busque esos estudiantes y elimínelos de la base.
+```{r}
+which(base$programa== "vocacional"& base$tipo =="privada")
+
+base1= base[-c(98,116),]
+```
+
+
++ Corra nuevamente el modelo usando la base donde se eliminaron esos dos estudiantes.
+
+```{r}
+mod2= multinom(programa~ genero+nivelsocio+ tipo, base1)
+```
+
+```{r}
+summary(mod2)
+```
+
+
++ Compare los errores estándar de los dos modelos.
+
+```{r}
+summary(mod1)$stand
+summary(mod2)$stand
+
+#en la ecuacion de vocacional hay un aumento sustancial en los errores estandar del intercepto y del coeficiente para tipo publica.
+```
+
+
+### CRANEOS
+
++ Se tienen datos de 32 cráneos recogidos en el Tibet los cuales han sido clasificados en 2 tipos raciales. 
+
++ Se cuenta con 5 medidas antropométricas de longitudes y anchuras de cráneo y cara las cuales se van a utilizar para construir una función discriminante.
+
++	Los datos se encuentran en el archivo “Tibet.Rdata”
+
+
+1.	Visualice los datos por pares de variables poniendo colores por tipo de cráneo.
+```{r}
+load("C:/Users/User/Desktop/Multi/Multivariado 2023/Laboratorios/Lab. No.4 - MULTINOMIAL Y DISCRIMINANTE/Tibet.Rdata")
+```
+
+```{r}
+pairs(base[,-6], col= base$tipo)
+```
+
++ Observe el comportamiento de los dos tipos para las diferentes combinaciones de variables.  Vea en particular si algunas de ellas serían suficientes para clasificar.
+```{r}
+#al observar los graficos anteriores se ve que en cualquiera de ellos hay un traslape entre los dos grupos, es decir, que con solo dos variables no se logra hacer una buena clasificacion. donde se ve que  hay menos traslape es cuando se usan anchura y longitud. Se requiere al menos 3 variables para hacer una mejor clasificacion
+```
+
+
+2.	Obtenga las matrices de covariancias para cada tipo de cráneo.  
+
++ Compárelas visualmente.
+```{r}
+S1= var(base[base$tipo == 1, -6])
+S2= var(base[base$tipo == 2, -6])
+
+round(S1,2)
+round(S2,2)
+```
+
+```{r}
+round(S1-S2,2)
+
+#se nota una enorme diferencia en la varianza de anchura de cara puesto que en el tipo 1 es de 66.21 mientras que en el tipo 2 es de 17.96 lo cual da una diferencia de 48.25. Hay dos covarianzas que difieren en mas de 30 unidades. Podria pensarse que las matrices de covarianza de las dos poblaciones de donde provienen los datos no son iguales.
+```
+
+
++	Haga la prueba multivariada de Box (M de Box) para verificar que las dos matrices de covariancias son iguales. Use la función boxM de la librería biotools:
+boxM(basex,tipo). Recuerde que en basex sólo se incluyen las variables métricas que se usarán para hacer la función de clasificación.
+
+```{r}
+library(biotools)
+boxM(base[,-6], base$tipo)
+#este resultado es sorprendente pues no se logra rechazar la hipotesis de igualdad de matrices de covarianzas. El hecho de haber encontrado una varianza diferente y posiblemente un par de covarianzas, no parece dar evidencia suficiente para decir que las matrices completas son tan diferentes. Posiblemente la prueba no tiene tanta potencia con esa cantidad de datos. Entonces se puede asumir que las matrices de covarianzas son iguales.
+```
+
+
++	Obtenga la matriz de covariancias combinada.
+```{r}
+n=table(base$tipo); n
+```
+
+```{r}
+Sp= ((n[1]-1)*S1+(n[2]-1)*S2)/(sum(n)-2)
+round(Sp, 2)
+```
+
+
+3.	Verifique el supuesto de normalidad:
+
++ Haga el qqplot multivariado para cada tipo de cráneo (tiene que hacer dos gráficos). Para hacer esto defina una sub-base para cada tipo de cráneo llamada b; n y p son el número de filas y columnas de b, respectivamente. Primero se calculan las distancias de Mahalanobis cuadrática de cada punto a su centroide. Debe especificarse la matriz de covariancias:
+```{r}
+par(mfrow= c(1,1))
+b= subset(base, base$tipo==1)[,-6]
+n= nrow(b)
+p= ncol(b)
+d= mahalanobis(b, colMeans(b), cov(b))
+qqplot(qchisq(ppoints(n), df=p), d, ylab= "Mahalanobis D2")
+
+abline(0,1)
+```
+
+```{r}
+b= subset(base, base$tipo==2)[,-6]
+n= nrow(b)
+p= ncol(b)
+d= mahalanobis(b, colMeans(b), cov(b))
+qqplot(qchisq(ppoints(n), df=p), d, ylab= "Mahalanobis D2")
+
+abline(0,1)
+
+#en los graficos multivariados tampoco hay un indicio de falta de normalidad
+```
+
+4. Asuma probabilidades a priori iguales para cada tipo de cráneo. Calcule el valor de las dos funciones discriminantes lineales para cada cráneo mediante:
+
+$$L_i(x)=\bar{x}_i^´S_p^{-1}\left(x-\frac{1}{2}\bar{x}_i\right) $$
+
+```{r}
+med= matrix(nrow = 5, ncol= 2)
+for(i in 1:5) med[i,]= tapply(base[,i], base$tipo, mean)
+
+dim(med)
+```
+
+```{r}
+N= nrow(base)
+L= matrix(nrow= N, ncol= 2)
+for(i in 1:N){
+  xi= base[i, -6]
+  L[i,1]=t( med[,1])%*% solve(Sp)%*%t(xi-0.5*med[,1])
+  L[i,2]=t( med[,2])%*% solve(Sp)%*%t(xi-0.5*med[,2])
+}
+```
+
++ Calcule las probabilidades a posteriori.
+```{r}
+prop= exp(L)/ (exp(L[,1])+ exp(L[,2]))
+prop
+```
+
+
++ Decida a cuál tipo asigna cada cráneo usando los resultados de las dos funciones anteriores.
+
+```{r}
+clas1 = ifelse(L[,1]> L[,2],1,2)
+clas1
+```
+
+```{r}
+clas2= 1*(prop[,1]>=0.5)+2*( prop[,2]>=0.5)
+
+table(clas1, clas2)
+```
+
+
++ Haga una tabla de confusión y calcule los porcentajes de clasificación errónea para cada tipo.
+```{r}
+tab= table(base$tipo, clas1); tab
+
+#hay tres craneos de cada tipo mal clasificados
+```
+
+
++ Use la función lda de la librería MASS. Debe escribir el modelo de la misma forma que se hace en lm. Llámelo mod1. Se pueden indicar probabilidades a priori con prior=c(0.5,0.5), si no se hace, el default son las proporciones observadas. 
+```{r}
+library(MASS)
+mod1= lda(tipo~ ., base, prior=c(0.5,0.5))
+```
+
+
++ Haga la clasificación basada en las funciones discriminantes obtenidas anteriormente en mod1. Para esto use predict(mod) y observe el resultado.  Compare estos resultados con los obtenidos manualmente en los puntos anteriores.
+```{r}
+pr= predict(mod1)
+table(base$tipo, pr$class)
+```
+
+
++ Clasifique dos cráneos que tienen los siguientes valores para las variables utilizadas: 171,140.5,127.0,69.5,137.0  y 179.0,132.0,140.0,72.0,138.5. Use la función predict de forma similar a un modelo de regresión.
+```{r}
+predict(mod1, data.frame(longitud=c(171, 179), anchura= c(140.5, 132), altura=c(127, 140), altura.cara= c(69.5,72), anchura.cara=c(137, 138.5)))
+
+#el primer craneo se clasifica como tipo 1 y el segundo se clasifica como tipo 2
+```
+
++ Realice el proceso de selección de variables con el stepwise hacia adelante para clasificación mediante la función greedy.wilks de  la librería klaR:
+greedy.wilks(tipo ~ .,data=base, prior=c(0.5,0.5), "lda", niveau = 0.05)
+```{r}
+library(klaR)
+```
+
+```{r}
+sc= greedy.wilks(tipo~., data= base, prior=c(0.5,0.5), "lda", niveau=0.05)
+sc
+
+#mediante la seleccion se sugiere usar solamente la altura de la cara
+```
+
+
++ Escriba el modelo sugerido por el resultado del proceso de selección de variables  y obtenga nuevamente la tabla de confusión. Compárela con la que obtuvo anteriormente. Es conveniente este resultado?
+```{r}
+mod2= lda(tipo~ altura.cara, prior=c(0.5,0.5), base)
+pr2= predict(mod2)
+tab2= table(base$tipo, predict(mod2)$class)
+tab2
+
+#aumentaron los casos mal clasificadso en el tipo 1
+```
+
+5. Proponga un modelo logístico y estime sus parámetros.
+
++ Haga la tabla de confusión y compárela con la obtenida anteriormente con LDA y con todas las variables.
+```{r}
+mod3= glm(factor(tipo)~., data = base, family = binomial)
+pr3= predict(mod3, type= "response")> 0.5
+table(base$tipo, pr3)
+```
+
+
++ Realice el proceso de selección de variables. Compárelo con el obtenido con el que sugiere el LDA.
+```{r}
+mod4= step(mod3)
+summary(mod4)
+```
+
+```{r}
+pr4= predict(mod4, type = "response")> 0.5
+table(base$tipo, pr4)
+
+#en este caso solo se elimina la altura, mientras que el LDA elimina otras 3 variables ademas de la altura, dejando solamente la altura de la cara
+```
+
+
